@@ -1,0 +1,73 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.0'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.faind'
+version = '0.1.0'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+ext {
+	set('resilience4jVersion', '2.2.0')
+	set('springdocVersion', '2.6.0')
+}
+
+dependencies {
+	// Web
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+	// Persistence
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	runtimeOnly 'org.postgresql:postgresql'
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-database-postgresql'
+
+	// Redis (DB설계서 §3.3/§3.6: 경로·ETA, 실시간 대원 상태는 Redis 우선 캐시)
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+	// Security / JWT
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+	runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+	// Resilience4j (CircuitBreaker for AI server / notification server calls)
+	implementation "io.github.resilience4j:resilience4j-spring-boot3:${resilience4jVersion}"
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
+
+	// API docs
+	implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
+
+	// Actuator (health checks per architecture diagram)
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+	// Utilities
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+
+	// Test
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

@@ -1,0 +1,56 @@
+version: "3.9"
+
+# FAIND 로컬 개발용 Docker Compose. 현재는 backend(Java) 개발 단계라 PostgreSQL/Redis + backend만 포함한다.
+# ai-server(Python)·notification-server(Node)는 코드구조설계서 §3/§4 구현 이후 이 파일에 추가된다.
+# (기술스택 §2.9: 데모 규모는 Docker Compose로 충분, Kubernetes는 실서비스 확장 시점의 로드맵)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: faind-postgres
+    environment:
+      POSTGRES_DB: faind
+      POSTGRES_USER: faind
+      POSTGRES_PASSWORD: faind
+    ports:
+      - "5432:5432"
+    volumes:
+      - faind-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U faind -d faind"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: faind-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    container_name: faind-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/faind
+      DB_USERNAME: faind
+      DB_PASSWORD: faind
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: faind-local-development-secret-key-change-in-production-0123456789
+    ports:
+      - "8080:8080"
+
+volumes:
+  faind-postgres-data:

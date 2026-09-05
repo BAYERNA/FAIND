@@ -1,0 +1,193 @@
+package com.faind.domain.incident.service;
+
+import com.faind.domain.incident.dto.AssignmentRequest;
+import com.faind.domain.incident.dto.AssignmentResponse;
+import com.faind.domain.incident.dto.DroneDispatchResponse;
+import com.faind.domain.incident.dto.IncidentCreateRequest;
+import com.faind.domain.incident.dto.IncidentResponse;
+import com.faind.domain.incident.dto.MonitoringResponse;
+import com.faind.domain.incident.dto.PreAnalysisResponse;
+import com.faind.domain.incident.dto.ResponderStatusRequest;
+import com.faind.domain.incident.dto.ResponderStatusResponse;
+import com.faind.domain.incident.entity.Incident;
+import com.faind.domain.incident.entity.IncidentAssignment;
+import com.faind.domain.incident.entity.IncidentType;
+import com.faind.domain.incident.entity.PreAnalysisResult;
+import com.faind.domain.incident.entity.ResponderStatusLog;
+import com.faind.domain.incident.event.IncidentClosedEvent;
+import com.faind.domain.incident.event.IncidentCreatedEvent;
+import com.faind.domain.incident.repository.DroneDispatchRepository;
+import com.faind.domain.incident.repository.IncidentAssignmentRepository;
+import com.faind.domain.incident.repository.IncidentRepository;
+import com.faind.domain.incident.repository.PreAnalysisResultRepository;
+import com.faind.domain.incident.repository.ResponderStatusLogRepository;
+import com.faind.global.error.BusinessException;
+import com.faind.global.error.ErrorCode;
+import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+// FR-02,03,04,05,12,19,20 핵심 로직. 출동 생성/조회/배정/종료를 다룬다.
+@Service
+@Transactional(readOnly = true)
+public class IncidentService {
+
+  // CMD-002 annot#1: 위험도 순 자동정렬 (위험 → 주의 → 정상 → 알 수 없음)
+  private static final Map<String, Integer> RISK_ORDER = Map.of("DANGER", 0, "CAUTION", 1, "NORMAL", 2);
+
+  private final IncidentRepository incidentRepository;
+  private final IncidentAssignmentRepository assignmentRepository;
+  private final PreAnalysisResultRepository preAnalysisResultRepository;
+  private final ResponderStatusLogRepository responderStatusLogRepository;
+  private final DroneDispatchRepository droneDispatchRepository;
+  private final IncidentNumberGenerator incidentNumberGenerator;
+  private final ApplicationEventPublisher eventPublisher;
+
+  public IncidentService(
+      IncidentRepository incidentRepository,
+      IncidentAssignmentRepository assignmentRepository,
+      PreAnalysisResultRepository preAnalysisResultRepository,
+      ResponderStatusLogRepository responderStatusLogRepository,
+      DroneDispatchRepository droneDispatchRepository,
+      IncidentNumberGenerator incidentNumberGenerator,
+      ApplicationEventPublisher eventPublisher) {
+    this.incidentRepository = incidentRepository;
+    this.assignmentRepository = assignmentRepository;
+    this.preAnalysisResultRepository = preAnalysisResultRepository;
+    this.responderStatusLogRepository = responderStatusLogRepository;
+    this.droneDispatchRepository = droneDispatchRepository;
+    this.incidentNumberGenerator = incidentNumberGenerator;
+    this.eventPublisher = eventPublisher;
+  }
+
+  @Transactional
+  public IncidentResponse create(IncidentCreateRequest request) {
+    Incident incident = Incident.manualReport(
+        incidentNumberGenerator.next(),
+        IncidentType.valueOf(request.incidentType()),
+        request.address(),
+        request.latitude(),
+        request.longitude(),
+        request.reportedAt() != null ? request.reportedAt() : LocalDateTime.now(),
+        request.commanderId());
+    incidentRepository.save(incident);
+    // §0.3: source 무관하게 "실제 출동(DISPATCHED)이 확정된 순간"에만 발행 — 사람 신고는 접수 즉시가 그 순간이다.
+    eventPublisher.publishEvent(new IncidentCreatedEvent(incident.getIncidentId(), true));
+    return IncidentResponse.from(incident);
+  }
+
+  public IncidentResponse getIncident(UUID incidentId) {
+    return IncidentResponse.from(findIncident(incidentId));
+  }
+
+  public PreAnalysisResponse getPreAnalysis(UUID incidentId) {
+    Incident incident = findIncident(incidentId);
+    PreAnalysisResult result = preAnalysisResultRepository.findByIncidentId(incidentId)
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "아직 사전분석 결과가 없습니다."));
+    return PreAnalysisResponse.from(result, incident.getReportedAt());
+  }
+
+  @Transactional
+  public AssignmentResponse assign(UUID incidentId, AssignmentRequest request) {
+    findIncident(incidentId); // 존재 검증
+    boolean isFirstAssignmentOfIncident = !assignmentRepository.existsByIncidentId(incidentId);
+
+    IncidentAssignment assignment = new IncidentAssignment(incidentId, request.userId(), request.roleInIncident());
+    if (isFirstAssignmentOfIncident) {
+      // FR-19: 해당 출동의 최초 배정자 = 선발대, 그중 최선임자를 통신 담당으로 자동 지정.
+      // MVP는 "최초 배정 = 최선임"으로 단순화한다 (계급 데이터가 없으면 배정 순서로 결정).
+      assignment.markAsFirstWave();
+      assignment.setCommsLead(true);
+    } else {
+      assignment.markAsFirstWave();
+    }
+    assignmentRepository.save(assignment);
+    return AssignmentResponse.from(assignment);
+  }
+
+  // FR-19: 지휘관이 CMD-002에서 통신 담당을 재지정.
+  @Transactional
+  public AssignmentResponse reassignCommsLead(UUID incidentId, UUID newCommsLeadUserId) {
+    assignmentRepository.findByIncidentIdAndCommsLeadTrue(incidentId).ifPresent(prev -> prev.setCommsLead(false));
+    IncidentAssignment next = assignmentRepository.findByIncidentIdAndUserId(incidentId, newCommsLeadUserId)
+        .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT, "해당 출동에 배정되지 않은 대원입니다."));
+    next.setCommsLead(true);
+    return AssignmentResponse.from(next);
+  }
+
+  public List<UUID> getAssignedResponderIds(UUID incidentId) {
+    return assignmentRepository.findByIncidentIdOrderByAssignedAtAsc(incidentId).stream()
+        .map(IncidentAssignment::getUserId)
+        .toList();
+  }
+
+  @Transactional
+  public void recordResponderStatus(UUID incidentId, ResponderStatusRequest request) {
+    findIncident(incidentId);
+    ResponderStatusLog log = new ResponderStatusLog(
+        incidentId, request.userId(), LocalDateTime.now(), request.biometricData(), request.environmentData(),
+        request.riskLevel(), request.connectionStatus());
+    responderStatusLogRepository.save(log);
+  }
+
+  // CMD-002 현장 모니터링 대시보드 전체 집계.
+  public MonitoringResponse getMonitoring(UUID incidentId) {
+    Incident incident = findIncident(incidentId);
+    List<ResponderStatusResponse> responders = latestStatusPerResponder(incidentId);
+    List<AssignmentResponse> assignments = assignmentRepository.findByIncidentIdOrderByAssignedAtAsc(incidentId).stream()
+        .map(AssignmentResponse::from)
+        .toList();
+    List<DroneDispatchResponse> drones = droneDispatchRepository.findByIncidentIdOrderByDispatchedAtDesc(incidentId).stream()
+        .map(DroneDispatchResponse::from)
+        .toList();
+    return new MonitoringResponse(IncidentResponse.from(incident), responders, assignments, drones);
+  }
+
+  private List<ResponderStatusResponse> latestStatusPerResponder(UUID incidentId) {
+    // 로그 테이블 특성상 user_id별 여러 건이 쌓이므로, 최신순으로 가져와 user_id당 첫 항목(최신)만 남긴다.
+    Map<UUID, ResponderStatusLog> latestByUser = new LinkedHashMap<>();
+    for (ResponderStatusLog log : responderStatusLogRepository.findByIncidentIdOrderByRecordedAtDesc(incidentId)) {
+      latestByUser.putIfAbsent(log.getUserId(), log);
+    }
+    return latestByUser.values().stream()
+        .sorted(Comparator.comparing(log -> RISK_ORDER.getOrDefault(log.getRiskLevel(), 3)))
+        .map(ResponderStatusResponse::from)
+        .toList();
+  }
+
+  // FR-05, QA 최우선 재검증 대상. status=CLOSED 전환과 IncidentClosedEvent 발행을
+  // 반드시 같은 트랜잭션 메서드 안에서 함께 수행해, "종료는 됐는데 알림/리포트가 안 생기는" 결함을 막는다.
+  @Transactional
+  public IncidentResponse close(UUID incidentId) {
+    Incident incident = findIncident(incidentId);
+    List<UUID> responderIds = getAssignedResponderIds(incidentId);
+    incident.close();
+    eventPublisher.publishEvent(new IncidentClosedEvent(incidentId, responderIds));
+    return IncidentResponse.from(incident);
+  }
+
+  // statistics 패키지가 FR-13(평균 판정 시간) 계산에 필요한 reported_at만 배치 조회할 때 사용.
+  public Map<UUID, LocalDateTime> getReportedAtByIds(List<UUID> incidentIds) {
+    return incidentRepository.findAllById(incidentIds).stream()
+        .collect(java.util.stream.Collectors.toMap(Incident::getIncidentId, Incident::getReportedAt));
+  }
+
+  Incident findIncident(UUID incidentId) {
+    return incidentRepository.findById(incidentId).orElseThrow(() -> new BusinessException(ErrorCode.INCIDENT_NOT_FOUND));
+  }
+
+  // REQUIRES_NEW: IncidentCreatedListener(AFTER_COMMIT)에서 호출된다. 원래 트랜잭션은 이미 물리적으로
+  // 커밋 처리 중이라(afterCommit 콜백은 cleanupAfterCompletion 이전에 실행됨) 기본 REQUIRED로 걸면
+  // 그 트랜잭션에 "합류"만 하고 실제 커밋이 안 되는(조용히 유실되는) 스프링 트랜잭션 함정이 있다.
+  @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+  public void savePreAnalysisResult(UUID incidentId, Map<String, Object> buildingInfo, Map<String, Object> hazardInfo,
+      Map<String, Object> fireHistoryInfo, String dataSource) {
+    preAnalysisResultRepository.save(new PreAnalysisResult(incidentId, buildingInfo, hazardInfo, fireHistoryInfo, dataSource));
+  }
+}
