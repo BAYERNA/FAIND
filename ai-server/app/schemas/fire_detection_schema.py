@@ -36,3 +36,12 @@ class FireDetectionResult(CamelModel):
     callback_sent: bool = False
     incident_id: Optional[UUID] = None
     reason: Optional[str] = None
+    # 단순 감지 여부를 넘어선 위험도·확산 신호 (yolo_service.DetectionResult 참조).
+    # 전부 실제 관측치 기반이며, 데이터가 부족하면 None으로 명확히 "판단 보류"를 표시한다.
+    area_ratio: float = 0.0
+    danger_level: str = "SAFE"  # SAFE | WARNING | DANGER | CRITICAL
+    danger_score: float = 0.0  # 0~100
+    is_flicker_verified: Optional[bool] = None  # None=판단 보류, True=진짜로 판단, False=오탐 의심
+    growth_ratio: Optional[float] = None
+    spread_direction: Optional[str] = None
+    spread_speed_px_per_sec: Optional[float] = None

@@ -12,6 +12,7 @@ from typing import Optional
 from langgraph.graph import END, StateGraph
 
 from app.agents.base_agent import BaseAgent
+from app.core.config import get_settings
 from app.services import opencv_processor
 from app.services.cctv_stream_service import CctvStreamService
 from app.services.yolo_service import YoloService
@@ -38,34 +39,55 @@ class FireDetectionAgent(BaseAgent):
         return await self.graph.ainvoke(state)
 
     async def _acquire_frame(self, state: dict) -> dict:
-        frame = None
+        frames: list = []
         if state.get("image_base64"):
             frame = opencv_processor.decode_base64_image(state["image_base64"])
+            if frame is not None:
+                frames = [frame]
         elif state.get("image_url"):
             frame = opencv_processor.fetch_image_from_url(state["image_url"])
+            if frame is not None:
+                frames = [frame]
         elif state.get("stream_url"):
-            frame = self.stream_service.capture_frame(state["stream_url"])
+            # 깜빡임 오탐 필터용으로 짧은 연속 프레임(burst)을 받아온다 — 단일 프레임(base64/URL)
+            # 요청은 애초에 정적 이미지 한 장이라 깜빡임을 판단할 근거가 없어 판단 보류로 처리된다.
+            settings = get_settings()
+            frames = self.stream_service.capture_burst(
+                state["stream_url"],
+                frame_count=settings.fire_burst_frame_count,
+                interval_seconds=settings.fire_burst_interval_seconds,
+            )
 
-        if frame is None:
-            state["frame"] = None
+        if not frames:
+            state["frames"] = []
             state["acquire_error"] = "이미지를 획득하지 못했습니다 (image_base64/image_url/stream_url 확인 필요)."
             return state
 
-        state["frame"] = opencv_processor.resize_for_inference(frame)
+        state["frames"] = [opencv_processor.resize_for_inference(f) for f in frames]
         return state
 
     async def _run_detection(self, state: dict) -> dict:
-        frame = state.get("frame")
-        if frame is None:
+        frames = state.get("frames") or []
+        if not frames:
             state["detected"] = False
             state["confidence"] = 0.0
             state["label"] = None
             state["reason"] = state.get("acquire_error", "알 수 없는 오류로 감지를 수행하지 못했습니다.")
+            state["danger_level"] = "SAFE"
+            state["danger_score"] = 0.0
             return state
 
-        result = self.yolo_service.detect_fire(frame)
+        camera_id = str(state.get("device_id") or "unknown")
+        result = self.yolo_service.detect_fire_burst(frames, camera_id)
         state["detected"] = result.detected
         state["confidence"] = result.confidence
         state["label"] = result.label
         state["reason"] = result.reason
+        state["area_ratio"] = result.area_ratio
+        state["danger_level"] = result.danger_level
+        state["danger_score"] = result.danger_score
+        state["is_flicker_verified"] = result.is_flicker_verified
+        state["growth_ratio"] = result.growth_ratio
+        state["spread_direction"] = result.spread_direction
+        state["spread_speed_px_per_sec"] = result.spread_speed_px_per_sec
         return state

@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     yolo_device: str = "cpu"
     fire_confidence_threshold: float = 0.55
 
+    # 깜빡임 기반 오탐 필터용 - 폴링 "한 번" 안에서 짧게 연속 촬영하는 프레임 수/간격.
+    # (yolo_service.py의 위험도 점수·확산추적 세부 임계값은 실제 카메라 영상 튜닝이 필요한
+    # 초기값이라 코드 상수로 유지한다 — 이 두 값만 운영 환경별로 조정할 수 있게 노출.)
+    fire_burst_frame_count: int = 5
+    fire_burst_interval_seconds: float = 0.15
+
     # 데모 규모의 CCTV 자동 폴링(선택 기능). 기본은 꺼져 있고, 켤 경우 아래 JSON 배열로 카메라를 정의.
     # 예: FAIND_CCTV_POLLING_ENABLED=true FAIND_CCTV_CAMERAS='[{"device_id":"...","stream_url":"..."}]'
     cctv_polling_enabled: bool = False

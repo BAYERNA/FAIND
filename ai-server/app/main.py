@@ -42,16 +42,20 @@ async def health():
 
 
 async def _poll_camera(device_id: str, stream_url: str) -> None:
-    result = await _fire_detection_agent.run({"stream_url": stream_url})
+    result = await _fire_detection_agent.run({"stream_url": stream_url, "device_id": device_id})
     if not result.get("detected"):
         return
     confidence = result.get("confidence", 0.0)
-    logger.warning("CCTV 자동감지: device=%s confidence=%.2f", device_id, confidence)
+    danger_level = result.get("danger_level", "SAFE")
+    logger.warning(
+        "CCTV 자동감지: device=%s confidence=%.2f danger=%s score=%.1f",
+        device_id, confidence, danger_level, result.get("danger_score", 0.0),
+    )
     try:
         await _backend_client.report_cctv_detection(
             camera_device_id=device_id,
             confidence_score=confidence * 100,
-            summary=f"CCTV 자동 폴링 감지 (label={result.get('label')})",
+            summary=f"CCTV 자동 폴링 감지 (label={result.get('label')}, danger={danger_level})",
         )
     except BackendClientError:
         logger.error("CCTV 폴링 감지 결과를 backend에 보고하지 못했습니다 (device=%s)", device_id)

@@ -38,7 +38,25 @@ JSON은 모두 camelCase로 주고받는다 (`app/core/camel_model.py` — Java 
   동작한다 — 항상 응답은 반환하되, 실제 LLM 판단이 아님을 `source` 필드 등으로 명시한다.
 - `FAIND_YOLO_MODEL_PATH`(기본 `models/fire_yolov8.pt`)에 화재/연기로 **파인튜닝된** 가중치가 없으면
   화재감지는 항상 `detected: false`를 반환한다. 공개 배포되는 기본 YOLOv8 가중치(COCO)는 fire/smoke
-  클래스가 없으므로, 실제로 동작하게 하려면 파인튜닝된 모델 파일을 이 경로에 둬야 한다.
+  클래스가 없으므로, 실제로 동작하게 하려면 파인튜닝된 모델 파일을 이 경로에 둬야 한다. 저장소에는
+  MIT+CC BY 4.0 라이선스의 실제 파인튜닝 모델이 이미 이 경로에 포함되어 있다 — 출처는
+  `models/NOTICE.md` 참조.
+
+## 화재감지 위험도·확산 신호 (FR-24/26 고도화)
+
+`FireDetectionResult`는 단순 감지 여부를 넘어 아래 신호를 함께 반환한다 (`app/services/yolo_service.py`):
+
+- `areaRatio` — 감지된 화재/연기 박스가 프레임에서 차지하는 비율
+- `dangerLevel`(SAFE/WARNING/DANGER/CRITICAL) · `dangerScore`(0~100) — confidence·area_ratio·확산 여부를
+  근거로 계산. 실제 카메라 영상으로 추가 튜닝이 필요한 초기값이다.
+- `isFlickerVerified` — 정적인 붉은/회색 물체를 오탐하는 것을 줄이기 위한 필터. CCTV 폴링(스트림 URL)
+  경로에서만 폴링 1회당 짧은 연속 프레임(burst, 기본 5장·0.15초 간격 — `FAIND_FIRE_BURST_*`)을 찍어
+  판단한다. base64/URL 단일 이미지 요청이나 burst 확보에 실패한 경우는 `null`("판단 보류")을
+  반환한다 — 근거 없이 참/거짓을 지어내지 않는다.
+- `growthRatio` / `spreadDirection` / `spreadSpeedPxPerSec` — 카메라(device_id)별로 최근 관측 이력을
+  프로세스 메모리에 보관해, 이전 관측 대비 화재/연기 영역이 얼마나·어느 방향으로·얼마나 빠르게
+  커지는지 계산한다. 같은 카메라에서 아직 이전 관측이 없으면 `null`이다. ai-server가 재시작되면
+  이 이력은 초기화된다(데모 규모 전제 — 단일 프로세스 메모리 상주).
 
 ## 테스트해본 방법 (수동 curl)
 

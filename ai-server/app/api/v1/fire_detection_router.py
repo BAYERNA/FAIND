@@ -30,6 +30,22 @@ def get_backend_client() -> FaindBackendClient:
     return FaindBackendClient()
 
 
+def _result_kwargs(result: dict) -> dict:
+    """agent 실행 결과 dict에서 FireDetectionResult 공통 필드를 뽑아낸다."""
+    return {
+        "detected": result.get("detected", False),
+        "confidence": result.get("confidence", 0.0),
+        "label": result.get("label"),
+        "area_ratio": result.get("area_ratio", 0.0),
+        "danger_level": result.get("danger_level", "SAFE"),
+        "danger_score": result.get("danger_score", 0.0),
+        "is_flicker_verified": result.get("is_flicker_verified"),
+        "growth_ratio": result.get("growth_ratio"),
+        "spread_direction": result.get("spread_direction"),
+        "spread_speed_px_per_sec": result.get("spread_speed_px_per_sec"),
+    }
+
+
 @router.post("/analyze", response_model=FireDetectionResult)
 async def analyze(
     request: FireDetectionRequest,
@@ -37,38 +53,40 @@ async def analyze(
     backend_client: FaindBackendClient = Depends(get_backend_client),
 ):
     result = await agent.run(
-        {"image_base64": request.image_base64, "image_url": request.image_url}
+        {
+            "image_base64": request.image_base64,
+            "image_url": request.image_url,
+            "device_id": str(request.device_id),
+        }
     )
-
-    detected = result.get("detected", False)
-    confidence = result.get("confidence", 0.0)
+    kwargs = _result_kwargs(result)
+    detected = kwargs["detected"]
+    confidence = kwargs["confidence"]
     reason = result.get("reason")
-    label = result.get("label")
+    label = kwargs["label"]
 
     if not (detected and request.notify_backend):
-        return FireDetectionResult(detected=detected, confidence=confidence, label=label, reason=reason)
+        return FireDetectionResult(reason=reason, **kwargs)
 
     if request.source_type == DetectionSourceType.CCTV:
         try:
             incident_id = await backend_client.report_cctv_detection(
                 camera_device_id=request.device_id,
                 confidence_score=confidence * 100,
-                summary=f"YOLOv8 화재/연기 감지 (label={label}, confidence={confidence:.2f})",
+                summary=(
+                    f"YOLOv8 화재/연기 감지 (label={label}, confidence={confidence:.2f}, "
+                    f"danger={kwargs['danger_level']})"
+                ),
                 address_hint=request.address_hint,
             )
-            return FireDetectionResult(
-                detected=True, confidence=confidence, label=label, callback_sent=True, incident_id=incident_id
-            )
+            return FireDetectionResult(callback_sent=True, incident_id=incident_id, **kwargs)
         except BackendClientError as e:
-            return FireDetectionResult(
-                detected=True, confidence=confidence, label=label, callback_sent=False, reason=str(e)
-            )
+            return FireDetectionResult(callback_sent=False, reason=str(e), **kwargs)
 
     # DRONE
     if request.dispatch_id is None:
         return FireDetectionResult(
-            detected=True, confidence=confidence, label=label, callback_sent=False,
-            reason="DRONE 소스는 dispatchId가 필요합니다.",
+            callback_sent=False, reason="DRONE 소스는 dispatchId가 필요합니다.", **kwargs
         )
     try:
         await backend_client.report_drone_recon(
@@ -76,6 +94,6 @@ async def analyze(
             confidence_score=confidence * 100,
             summary=f"드론 정찰 화재/연기 감지 (label={label}, confidence={confidence:.2f})",
         )
-        return FireDetectionResult(detected=True, confidence=confidence, label=label, callback_sent=True)
+        return FireDetectionResult(callback_sent=True, **kwargs)
     except BackendClientError as e:
-        return FireDetectionResult(detected=True, confidence=confidence, label=label, callback_sent=False, reason=str(e))
+        return FireDetectionResult(callback_sent=False, reason=str(e), **kwargs)
