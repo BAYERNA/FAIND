@@ -1,18 +1,23 @@
 package com.faind.domain.incident.service;
 
 import java.time.Year;
-import java.util.concurrent.atomic.AtomicInteger;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-// 예: 2026-0142. 데모 규모에서는 연도별 인메모리 시퀀스로 충분하다 (동시성이 커지면 DB 시퀀스로 대체).
+// 예: 2026-0142. DB 시퀀스(incident_number_seq, V2 마이그레이션)를 사용한다 — 인메모리 카운터는
+// 애플리케이션 재기동 시 0으로 리셋되어 기존 incidents.incident_number(UNIQUE)와 충돌하는 결함이 있었다.
 @Component
 class IncidentNumberGenerator {
 
-  private final AtomicInteger sequence = new AtomicInteger(0);
+  private final JdbcTemplate jdbcTemplate;
+
+  IncidentNumberGenerator(JdbcTemplate jdbcTemplate) {
+    this.jdbcTemplate = jdbcTemplate;
+  }
 
   String next() {
     int year = Year.now().getValue();
-    int seq = sequence.incrementAndGet();
+    Long seq = jdbcTemplate.queryForObject("SELECT nextval('incident_number_seq')", Long.class);
     return "%d-%04d".formatted(year, seq);
   }
 }

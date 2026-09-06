@@ -1,0 +1,38 @@
+"""FR-24(CCTV 자동 화재감지) / FR-26(드론 정찰). YOLOv8 기반, CCTV·드론 겸용 스키마.
+
+fire_detection_router는 두 소스를 같은 파이프라인(fire_detection_agent)으로 처리하되,
+결과 콜백 대상만 다르다: CCTV는 incident 신규 생성(FR-24), 드론은 기존 dispatch에 결과만 덧붙인다(FR-26).
+"""
+
+from enum import Enum
+from typing import Optional
+from uuid import UUID
+
+from app.core.camel_model import CamelModel
+
+
+class DetectionSourceType(str, Enum):
+    CCTV = "CCTV"
+    DRONE = "DRONE"
+
+
+class FireDetectionRequest(CamelModel):
+    source_type: DetectionSourceType
+    device_id: UUID
+    # DRONE일 때만 필요 — 이미 존재하는 drone_dispatches row에 결과를 붙여야 하므로.
+    dispatch_id: Optional[UUID] = None
+    address_hint: Optional[str] = None
+    # 이미지: base64(PNG/JPEG) 또는 접근 가능한 URL/스트림 경로 중 하나 이상 제공.
+    image_base64: Optional[str] = None
+    image_url: Optional[str] = None
+    # 콜백을 이 요청 안에서 바로 보낼지(자동화 파이프라인) 아니면 결과만 볼지(수동 테스트).
+    notify_backend: bool = True
+
+
+class FireDetectionResult(CamelModel):
+    detected: bool
+    confidence: float
+    label: Optional[str] = None
+    callback_sent: bool = False
+    incident_id: Optional[UUID] = None
+    reason: Optional[str] = None

@@ -1,7 +1,7 @@
 version: "3.9"
 
-# FAIND 로컬 개발용 Docker Compose. 현재는 backend(Java) 개발 단계라 PostgreSQL/Redis + backend만 포함한다.
-# ai-server(Python)·notification-server(Node)는 코드구조설계서 §3/§4 구현 이후 이 파일에 추가된다.
+# FAIND 로컬 개발용 Docker Compose. backend(Java) + ai-server(Python) 구현 완료, notification-server(Node)는
+# 코드구조설계서 §4 구현 이후 이 파일에 추가된다.
 # (기술스택 §2.9: 데모 규모는 Docker Compose로 충분, Kubernetes는 실서비스 확장 시점의 로드맵)
 
 services:
@@ -49,8 +49,18 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: faind-local-development-secret-key-change-in-production-0123456789
+      AI_SERVER_BASE_URL: http://ai-server:8001
     ports:
       - "8080:8080"
+
+  ai-server:
+    build:
+      context: ./ai-server
+    container_name: faind-ai-server
+    environment:
+      FAIND_BACKEND_BASE_URL: http://backend:8080
+    ports:
+      - "8001:8001"
 
 volumes:
   faind-postgres-data:
