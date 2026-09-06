@@ -16,6 +16,16 @@ npm run build && npm run start
 이 서비스는 `synchronize: false`로 매핑만 하며 스키마를 바꾸지 않는다 — 반드시 backend를 먼저
 한 번 기동해 마이그레이션을 적용한 뒤 이 서비스를 실행할 것.
 
+## 자동화 테스트
+
+```bash
+npm run test
+```
+
+`AlertsGateway`의 RESPONDER 배정 권한 검증(WebSocket join 스코프)과 `EscalationService`의
+위험경고 재알림 조건(미확인·종료된 출동 제외)을 단위 테스트로 검증한다. 실제 DB 연결 없이
+리포지토리를 목(mock)으로 대체한다.
+
 ## 인증
 
 - REST: `Authorization: Bearer <backend가 발급한 JWT>` — backend `JwtTokenProvider`와 같은

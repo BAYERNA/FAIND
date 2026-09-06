@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AckModule } from './acknowledgements/ack.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { EscalationModule } from './escalation/escalation.module';
 import { WebhookModule } from './common/webhook/webhook.module';
 
 @Module({
@@ -25,6 +26,7 @@ import { WebhookModule } from './common/webhook/webhook.module';
     AlertsModule,
     AckModule,
     WebhookModule,
+    EscalationModule,
   ],
 })
 export class AppModule {}

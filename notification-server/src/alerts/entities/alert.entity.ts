@@ -50,4 +50,9 @@ export class Alert {
 
   @CreateDateColumn({ name: 'sent_at', type: 'timestamp' })
   sentAt: Date;
+
+  // Phase 7 FR-22 에스컬레이션(V5 마이그레이션). 재알림을 이미 한 번 보냈으면 채워지고,
+  // 그 뒤로는 이 alert를 다시 에스컬레이션 대상에서 제외한다.
+  @Column({ name: 'escalated_at', type: 'timestamp', nullable: true })
+  escalatedAt: Date | null;
 }

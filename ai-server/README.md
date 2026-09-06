@@ -58,6 +58,17 @@ JSON은 모두 camelCase로 주고받는다 (`app/core/camel_model.py` — Java 
   커지는지 계산한다. 같은 카메라에서 아직 이전 관측이 없으면 `null`이다. ai-server가 재시작되면
   이 이력은 초기화된다(데모 규모 전제 — 단일 프로세스 메모리 상주).
 
+## 자동화 테스트
+
+```bash
+pip install -r requirements-dev.txt
+pytest tests/
+```
+
+`tests/test_yolo_service.py`가 위험도 점수·등급 계산(`_score_danger`/`_level_for_score`)과
+카메라별 확산 추적(`_track_spread`)을 검증한다 — 실제 YOLO 추론(`detect_fire_burst`)은 모델
+로드가 필요해 범위 밖이고, 그 결과를 소비하는 순수 계산 로직만 다룬다.
+
 ## 테스트해본 방법 (수동 curl)
 
 ```bash
