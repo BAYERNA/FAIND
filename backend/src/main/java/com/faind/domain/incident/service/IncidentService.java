@@ -2,6 +2,7 @@ package com.faind.domain.incident.service;
 
 import com.faind.domain.auth.service.AccountService;
 import com.faind.domain.device.service.DeviceService;
+import com.faind.domain.incident.dto.AiJudgmentSummaryResponse;
 import com.faind.domain.incident.dto.AssignmentRequest;
 import com.faind.domain.incident.dto.AssignmentResponse;
 import com.faind.domain.incident.dto.DashboardSummaryResponse;
@@ -18,8 +19,10 @@ import com.faind.domain.incident.entity.IncidentAssignment;
 import com.faind.domain.incident.entity.IncidentType;
 import com.faind.domain.incident.entity.PreAnalysisResult;
 import com.faind.domain.incident.entity.ResponderStatusLog;
+import com.faind.domain.incident.entity.IncidentStatus;
 import com.faind.domain.incident.event.IncidentClosedEvent;
 import com.faind.domain.incident.event.IncidentCreatedEvent;
+import com.faind.domain.incident.repository.AiJudgmentLogRepository;
 import com.faind.domain.incident.repository.DroneDispatchRepository;
 import com.faind.domain.incident.repository.IncidentAssignmentRepository;
 import com.faind.domain.incident.repository.IncidentRepository;
@@ -56,6 +59,7 @@ public class IncidentService {
   private final ApplicationEventPublisher eventPublisher;
   private final AccountService accountService;
   private final DeviceService deviceService;
+  private final AiJudgmentLogRepository aiJudgmentLogRepository;
 
   public IncidentService(
       IncidentRepository incidentRepository,
@@ -66,7 +70,8 @@ public class IncidentService {
       IncidentNumberGenerator incidentNumberGenerator,
       ApplicationEventPublisher eventPublisher,
       AccountService accountService,
-      DeviceService deviceService) {
+      DeviceService deviceService,
+      AiJudgmentLogRepository aiJudgmentLogRepository) {
     this.incidentRepository = incidentRepository;
     this.assignmentRepository = assignmentRepository;
     this.preAnalysisResultRepository = preAnalysisResultRepository;
@@ -76,6 +81,7 @@ public class IncidentService {
     this.eventPublisher = eventPublisher;
     this.accountService = accountService;
     this.deviceService = deviceService;
+    this.aiJudgmentLogRepository = aiJudgmentLogRepository;
   }
 
   @Transactional
@@ -199,6 +205,23 @@ public class IncidentService {
   public Page<IncidentListItemResponse> listRecent(Pageable pageable) {
     return incidentRepository.findAllByOrderByReportedAtDesc(pageable)
         .map(incident -> IncidentListItemResponse.from(incident, assignmentRepository.countByIncidentId(incident.getIncidentId())));
+  }
+
+  // CMD-001 지휘관 태블릿 진입 화면. CCTV 출처 출동은 commanderId가 배정되지 않으므로
+  // commander별 필터 대신 DISPATCHED/IN_PROGRESS 전체를 노출한다 (컨트롤러에서 COMMANDER/ADMIN 권한으로 제한).
+  public List<IncidentResponse> listActive() {
+    return incidentRepository.findByStatusInOrderByReportedAtDesc(List.of(IncidentStatus.DISPATCHED, IncidentStatus.IN_PROGRESS))
+        .stream()
+        .map(IncidentResponse::from)
+        .toList();
+  }
+
+  // CMD-002 드론 정찰 카드(FR-26) 등에서 해당 출동에 얽힌 AI 판단 이력을 시간순으로 보여줄 때 사용.
+  public List<AiJudgmentSummaryResponse> getAiJudgments(UUID incidentId) {
+    findIncident(incidentId); // 존재 검증
+    return aiJudgmentLogRepository.findByRelatedIncidentIdOrderByCreatedAtDesc(incidentId).stream()
+        .map(AiJudgmentSummaryResponse::from)
+        .toList();
   }
 
   // statistics 패키지가 FR-13(평균 판정 시간) 계산에 필요한 reported_at만 배치 조회할 때 사용.

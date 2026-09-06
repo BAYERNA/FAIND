@@ -41,7 +41,9 @@ public class AccountController {
     return ResponseEntity.ok(accountService.list(keyword, role, pageable));
   }
 
+  // CMD-002/003: 지휘관도 현장 대원 식별을 위해 개별 계정 조회는 허용한다 (목록·등록·수정은 ADMIN 전용 유지).
   @GetMapping("/{userId}")
+  @PreAuthorize("hasAnyRole('COMMANDER','ADMIN')")
   public ResponseEntity<AccountResponse> get(@PathVariable UUID userId) {
     return ResponseEntity.ok(accountService.getAccount(userId));
   }

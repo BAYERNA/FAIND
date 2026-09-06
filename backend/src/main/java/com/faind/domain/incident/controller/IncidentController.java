@@ -1,5 +1,6 @@
 package com.faind.domain.incident.controller;
 
+import com.faind.domain.incident.dto.AiJudgmentSummaryResponse;
 import com.faind.domain.incident.dto.AssignmentRequest;
 import com.faind.domain.incident.dto.AssignmentResponse;
 import com.faind.domain.incident.dto.DashboardSummaryResponse;
@@ -13,6 +14,7 @@ import com.faind.domain.incident.dto.ResponderStatusRequest;
 import com.faind.domain.incident.service.DroneDispatchService;
 import com.faind.domain.incident.service.IncidentService;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -59,6 +61,13 @@ public class IncidentController {
     return ResponseEntity.ok(incidentService.listRecent(pageable));
   }
 
+  // CMD-001 지휘관 태블릿 진입 화면: DISPATCHED/IN_PROGRESS 전체 (CCTV 출처는 commanderId가 없어 개인별 필터 불가)
+  @GetMapping("/active")
+  @PreAuthorize("hasAnyRole('COMMANDER','ADMIN')")
+  public ResponseEntity<List<IncidentResponse>> listActive() {
+    return ResponseEntity.ok(incidentService.listActive());
+  }
+
   @GetMapping("/{incidentId}")
   public ResponseEntity<IncidentResponse> get(@PathVariable UUID incidentId) {
     return ResponseEntity.ok(incidentService.getIncident(incidentId));
@@ -70,14 +79,22 @@ public class IncidentController {
     return ResponseEntity.ok(incidentService.getPreAnalysis(incidentId));
   }
 
+  // CMD-002 드론 정찰 카드(FR-26) 등에서 사용하는 AI 판단 이력
+  @GetMapping("/{incidentId}/ai-judgments")
+  public ResponseEntity<List<AiJudgmentSummaryResponse>> getAiJudgments(@PathVariable UUID incidentId) {
+    return ResponseEntity.ok(incidentService.getAiJudgments(incidentId));
+  }
+
   // FR-19: 배정 시 선발대/통신담당 자동 산출
   @PostMapping("/{incidentId}/assignments")
+  @PreAuthorize("hasAnyRole('COMMANDER','ADMIN')")
   public ResponseEntity<AssignmentResponse> assign(@PathVariable UUID incidentId, @Valid @RequestBody AssignmentRequest request) {
     return ResponseEntity.ok(incidentService.assign(incidentId, request));
   }
 
   // FR-19: 지휘관이 통신 담당 재지정
   @PatchMapping("/{incidentId}/assignments/{userId}/comms-lead")
+  @PreAuthorize("hasAnyRole('COMMANDER','ADMIN')")
   public ResponseEntity<AssignmentResponse> reassignCommsLead(@PathVariable UUID incidentId, @PathVariable UUID userId) {
     return ResponseEntity.ok(incidentService.reassignCommsLead(incidentId, userId));
   }
@@ -98,6 +115,7 @@ public class IncidentController {
 
   // FR-05 CMD-006 "종료 확정" — QA 최우선 재검증 대상
   @PatchMapping("/{incidentId}/close")
+  @PreAuthorize("hasAnyRole('COMMANDER','ADMIN')")
   public ResponseEntity<IncidentResponse> close(@PathVariable UUID incidentId) {
     return ResponseEntity.ok(incidentService.close(incidentId));
   }

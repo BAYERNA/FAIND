@@ -43,7 +43,9 @@ public class DeviceController {
     return ResponseEntity.ok(deviceService.list(keyword, deviceType, pageable));
   }
 
+  // CMD-002 드론 정찰 카드: 지휘관도 배정된 드론 기기 상세(배터리·상태)는 조회 가능해야 한다.
   @GetMapping("/{deviceId}")
+  @PreAuthorize("hasAnyRole('COMMANDER','ADMIN')")
   public ResponseEntity<DeviceResponse> get(@PathVariable UUID deviceId) {
     return ResponseEntity.ok(deviceService.get(deviceId));
   }

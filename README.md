@@ -19,6 +19,7 @@ AI가 화재를 감지하고 골든타임을 사수하는 지능형 소방 대�
 | `ai-server/` | Python 3.11 + FastAPI + LangGraph | 구현 완료 (FR-02 사전분석, FR-08 SOP대조, FR-24/26 화재감지) |
 | `notification-server/` | Node.js + NestJS | 구현 완료 (FR-06, FR-18, FR-22, FR-23) |
 | `admin-web/` | React 19 + TypeScript + Vite | 구현 완료 (CMN-001/002, ADM-001/002/003/006/009) |
+| `commander-tablet/` | React 19 + TypeScript + Vite | 구현 완료 (CMN-001/002, CMD-001/002/003/006) |
 
 ## ai-server 로컬 실행
 
@@ -76,6 +77,18 @@ npm run dev
 `http://localhost:5173`에서 접속. dev server가 `/api` 요청을 backend(`VITE_BACKEND_URL`, 기본
 `http://localhost:8080`)로 프록시하므로 backend를 먼저 기동해야 한다. 화면 구성과 설계 원칙은
 `admin-web/README.md` 참조.
+
+## commander-tablet 로컬 실행
+
+```bash
+cd commander-tablet
+npm install
+npm run dev
+```
+
+`http://localhost:5174`에서 접속 (admin-web과 동시에 띄울 수 있도록 포트를 분리했다). dev server가
+`/api`는 backend로, `/notify`·`/socket.io`는 notification-server로 프록시하므로 둘 다 먼저 기동해야
+한다. 화면 구성과 설계 원칙은 `commander-tablet/README.md` 참조.
 
 ## 전체 스택 실행
 
