@@ -53,6 +53,10 @@ Flyway가 기동 시 `backend/src/main/resources/db/migration`의 스키마를 �
 `http://localhost:3001`)로 각 서비스 주소를 지정한다. 둘 다 없어도 backend는 정상 동작한다 —
 AiAnalysisHttpAdapter/NotificationHttpAdapter가 CircuitBreaker+fallback으로 처리한다.
 
+FR-20(후발대 경로·ETA)은 DB설계서에 소방서·차량 위치 테이블이 없어 `faind.routing.fire-station-*`
+(위도/경도/표시명) 고정 좌표를 출발지로 근사한다 — 실제 관할 소방서 좌표로 바꾸려면 이 값만
+`application.yml`에서 덮어쓰면 된다.
+
 ## notification-server 로컬 실행
 
 ```bash

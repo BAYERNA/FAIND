@@ -4,6 +4,7 @@ import com.faind.domain.incident.dto.IncidentResponse;
 import com.faind.domain.incident.event.IncidentCreatedEvent;
 import com.faind.domain.incident.service.DroneDispatchService;
 import com.faind.domain.incident.service.IncidentService;
+import com.faind.domain.incident.service.RoutingApiClient;
 import com.faind.integration.ai.AiAnalysisPort;
 import com.faind.integration.ai.dto.PreAnalysisRequestDto;
 import com.faind.integration.ai.dto.PreAnalysisResultDto;
@@ -24,17 +25,21 @@ public class IncidentCreatedListener {
   private final IncidentService incidentService;
   private final DroneDispatchService droneDispatchService;
   private final AiAnalysisPort aiAnalysisPort;
+  private final RoutingApiClient routingApiClient;
 
   public IncidentCreatedListener(
-      IncidentService incidentService, DroneDispatchService droneDispatchService, AiAnalysisPort aiAnalysisPort) {
+      IncidentService incidentService, DroneDispatchService droneDispatchService, AiAnalysisPort aiAnalysisPort,
+      RoutingApiClient routingApiClient) {
     this.incidentService = incidentService;
     this.droneDispatchService = droneDispatchService;
     this.aiAnalysisPort = aiAnalysisPort;
+    this.routingApiClient = routingApiClient;
   }
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void onIncidentCreated(IncidentCreatedEvent event) {
     runPreAnalysis(event);
+    runGroundRouteEstimate(event);
     if (event.droneEligible()) {
       runDroneAutoDispatch(event);
     }
@@ -58,6 +63,17 @@ public class IncidentCreatedListener {
       droneDispatchService.autoDispatch(event.incidentId());
     } catch (Exception e) {
       log.error("FR-25 드론 자동배정 실패 (incidentId={})", event.incidentId(), e);
+    }
+  }
+
+  // FR-20: 후발대(소방차) 출동 확정 시 관할 소방서 고정 좌표 기준 경로·ETA를 1회 계산해 Redis에 캐시.
+  private void runGroundRouteEstimate(IncidentCreatedEvent event) {
+    try {
+      IncidentResponse incident = incidentService.getIncident(event.incidentId());
+      routingApiClient.estimateGroundRouteFromStation(
+          incident.incidentId().toString(), incident.latitude(), incident.longitude());
+    } catch (Exception e) {
+      log.error("FR-20 후발대 경로 계산 실패 (incidentId={})", event.incidentId(), e);
     }
   }
 }

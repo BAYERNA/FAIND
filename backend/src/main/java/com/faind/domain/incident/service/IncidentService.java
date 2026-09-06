@@ -14,6 +14,7 @@ import com.faind.domain.incident.dto.MonitoringResponse;
 import com.faind.domain.incident.dto.PreAnalysisResponse;
 import com.faind.domain.incident.dto.ResponderStatusRequest;
 import com.faind.domain.incident.dto.ResponderStatusResponse;
+import com.faind.domain.incident.dto.RouteEstimateResponse;
 import com.faind.domain.incident.entity.Incident;
 import com.faind.domain.incident.entity.IncidentAssignment;
 import com.faind.domain.incident.entity.IncidentType;
@@ -60,6 +61,7 @@ public class IncidentService {
   private final AccountService accountService;
   private final DeviceService deviceService;
   private final AiJudgmentLogRepository aiJudgmentLogRepository;
+  private final RoutingApiClient routingApiClient;
 
   public IncidentService(
       IncidentRepository incidentRepository,
@@ -71,7 +73,8 @@ public class IncidentService {
       ApplicationEventPublisher eventPublisher,
       AccountService accountService,
       DeviceService deviceService,
-      AiJudgmentLogRepository aiJudgmentLogRepository) {
+      AiJudgmentLogRepository aiJudgmentLogRepository,
+      RoutingApiClient routingApiClient) {
     this.incidentRepository = incidentRepository;
     this.assignmentRepository = assignmentRepository;
     this.preAnalysisResultRepository = preAnalysisResultRepository;
@@ -82,6 +85,7 @@ public class IncidentService {
     this.accountService = accountService;
     this.deviceService = deviceService;
     this.aiJudgmentLogRepository = aiJudgmentLogRepository;
+    this.routingApiClient = routingApiClient;
   }
 
   @Transactional
@@ -222,6 +226,14 @@ public class IncidentService {
     return aiJudgmentLogRepository.findByRelatedIncidentIdOrderByCreatedAtDesc(incidentId).stream()
         .map(AiJudgmentSummaryResponse::from)
         .toList();
+  }
+
+  // FR-20 CMD-001/002: 배정 확정 시 1회 계산돼 캐시된 후발대 경로·ETA. 캐시가 없으면(TTL 만료 등)
+  // 재계산하지 않고 그대로 "정보 없음"을 알린다 — 실제로 계산되지 않은 값을 임의로 만들어내지 않는다.
+  public RouteEstimateResponse getGroundRouteEstimate(UUID incidentId) {
+    findIncident(incidentId); // 존재 검증
+    return routingApiClient.getCachedGroundRoute(incidentId.toString())
+        .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "아직 후발대 경로 정보가 없습니다."));
   }
 
   // statistics 패키지가 FR-13(평균 판정 시간) 계산에 필요한 reported_at만 배치 조회할 때 사용.

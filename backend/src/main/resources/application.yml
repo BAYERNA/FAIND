@@ -53,6 +53,11 @@ faind:
   routing:
     ground-vehicle-avg-speed-kmh: 40
     drone-avg-speed-kmh: 70
+    # FR-20: 후발대(소방차) 출발지. DB설계서에 소방서·차량 위치 테이블이 없어(드론처럼 device로
+    # 추적되지 않음), 실서비스 전환 전까지는 관할 소방서 고정 좌표로 근사한다.
+    fire-station-latitude: 37.5665
+    fire-station-longitude: 126.9780
+    fire-station-label: "OO소방서"
   statistics:
     # FR-27 "기존 평균 출동시간" 기준값(초). 실서비스 단계에서는 소방청 통계 API로 대체.
     existing-average-dispatch-seconds: 492

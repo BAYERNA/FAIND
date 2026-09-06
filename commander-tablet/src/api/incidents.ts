@@ -5,6 +5,7 @@ import type {
   IncidentResponse,
   MonitoringResponse,
   PreAnalysisResponse,
+  RouteEstimateResponse,
 } from '../types'
 
 export interface AssignRequest {
@@ -24,6 +25,11 @@ export function getIncident(incidentId: string): Promise<IncidentResponse> {
 // CMD-001: 사전분석 결과 + NFR-03 검증용 소요시간
 export function getPreAnalysis(incidentId: string): Promise<PreAnalysisResponse> {
   return apiRequest<PreAnalysisResponse>(`/api/v1/incidents/${incidentId}/pre-analysis`)
+}
+
+// FR-20 CMD-001: 후발대(소방차) 경로·ETA — 관할 소방서 고정 좌표 기준 근사치, 출동 확정 시 1회 계산.
+export function getGroundRouteEstimate(incidentId: string): Promise<RouteEstimateResponse> {
+  return apiRequest<RouteEstimateResponse>(`/api/v1/incidents/${incidentId}/route-estimate`)
 }
 
 // CMD-002 현장 모니터링 대시보드 전체 데이터

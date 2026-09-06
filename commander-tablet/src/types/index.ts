@@ -49,6 +49,13 @@ export interface IncidentResponse {
   commanderId: string | null
 }
 
+// FR-20: 후발대(소방차) 경로·ETA. 관할 소방서 고정 좌표 기준 근사치 — 실제 차량 위치 연동 전까지의 임시값.
+export interface RouteEstimateResponse {
+  distanceKm: number | null
+  etaSeconds: number
+  originLabel: string | null
+}
+
 // CMD-001: 헤더에 "사전분석 완료 (2.1초)"처럼 소요시간을 표시해 NFR-03(3초 이내) 검증을 가능하게 한다.
 export interface PreAnalysisResponse {
   incidentId: string

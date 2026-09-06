@@ -25,7 +25,7 @@ backend의 `faind.cors.allowed-origins`(기본값에 `http://localhost:5174` 포
 |---|---|---|
 | `/login` | CMN-001 | 통합 로그인 (FR-01) — COMMANDER 역할 전용 |
 | `/initial-password` | CMN-002 | 최초 비밀번호 설정 |
-| `/` | CMD-001 | 출동지령·사전분석 — DISPATCHED/IN_PROGRESS 출동 목록 + 사전분석(FR-02, NFR-03) |
+| `/` | CMD-001 | 출동지령·사전분석 — DISPATCHED/IN_PROGRESS 출동 목록 + 사전분석(FR-02, NFR-03) + 후발대 경로·ETA(FR-20) |
 | `/incidents/:incidentId` | CMD-002 | 현장 모니터링 대시보드 — 대원 배정(FR-19), 위험도순 대원 상태(FR-03), 통신담당 재지정(FR-19), 드론 정찰(FR-26), 알림·인수인계 피드(FR-06/18/22/23), 실시간 WebSocket |
 | `/incidents/:incidentId/responders/:userId` | CMD-003 | 대원 상세 — 최신 생체·환경 데이터(FR-04), 관련 알림 이력 |
 | CMD-002 내 다이얼로그 | CMD-006 | 출동 종료 확정 (FR-05) |
@@ -54,6 +54,11 @@ backend의 `faind.cors.allowed-origins`(기본값에 `http://localhost:5174` 포
 - **알림 발신 범위**: FR-18(진입정보)·FR-23(지원요청)은 USR-001(대원 앱)이 입력하는 것을 전제로
   CMD-002는 수신·확인현황(FR-22)만 표시한다. FR-06(위험정보)은 지휘관이 현장을 내려다보는 입장이므로
   이 화면에서 직접 발신(전체 브로드캐스트 또는 대원 지정)할 수 있게 했다.
+
+- **FR-20 후발대 경로·ETA**: DB설계서에 소방서·차량 위치를 추적할 테이블이 없어(드론처럼 device로
+  위치를 알 수 없음), backend가 관할 소방서 고정 좌표(`faind.routing.fire-station-*`)를 출발지로
+  근사해 출동 확정 시 1회 계산·캐시한다(TTL 10분). CMD-001이 이 값을 사전분석과 나란히 보여주고,
+  캐시가 없으면(TTL 만료 등) 재계산하지 않고 "정보 없음"을 그대로 표시한다.
 
 ## 알려진 제약
 

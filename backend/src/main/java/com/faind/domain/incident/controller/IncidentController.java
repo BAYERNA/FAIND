@@ -11,6 +11,7 @@ import com.faind.domain.incident.dto.MonitoringResponse;
 import com.faind.domain.incident.dto.PreAnalysisResponse;
 import com.faind.domain.incident.dto.DroneReconRequest;
 import com.faind.domain.incident.dto.ResponderStatusRequest;
+import com.faind.domain.incident.dto.RouteEstimateResponse;
 import com.faind.domain.incident.service.DroneDispatchService;
 import com.faind.domain.incident.service.IncidentService;
 import jakarta.validation.Valid;
@@ -83,6 +84,12 @@ public class IncidentController {
   @GetMapping("/{incidentId}/ai-judgments")
   public ResponseEntity<List<AiJudgmentSummaryResponse>> getAiJudgments(@PathVariable UUID incidentId) {
     return ResponseEntity.ok(incidentService.getAiJudgments(incidentId));
+  }
+
+  // FR-20 CMD-001/002: 후발대(소방차) 경로·ETA — 출동 확정 시 관할 소방서 고정 좌표 기준으로 1회 계산돼 캐시된 값
+  @GetMapping("/{incidentId}/route-estimate")
+  public ResponseEntity<RouteEstimateResponse> getGroundRouteEstimate(@PathVariable UUID incidentId) {
+    return ResponseEntity.ok(incidentService.getGroundRouteEstimate(incidentId));
   }
 
   // FR-19: 배정 시 선발대/통신담당 자동 산출

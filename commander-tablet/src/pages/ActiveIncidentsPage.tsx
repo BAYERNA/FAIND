@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { TabletLayout } from '../components/TabletLayout'
-import { getActiveIncidents, getPreAnalysis } from '../api/incidents'
+import { getActiveIncidents, getGroundRouteEstimate, getPreAnalysis } from '../api/incidents'
 import { ApiError } from '../api/client'
 import './ActiveIncidentsPage.css'
 
@@ -17,6 +17,12 @@ const SOURCE_LABEL: Record<string, string> = { MANUAL_REPORT: '신고접수', CC
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+function formatEta(etaSeconds: number): string {
+  if (etaSeconds < 0) return '거리 정보 없음'
+  const m = Math.round(etaSeconds / 60)
+  return `약 ${m}분`
 }
 
 function InfoBox({ label, data }: { label: string; data: Record<string, unknown> | null }) {
@@ -47,6 +53,13 @@ export function ActiveIncidentsPage() {
   const preAnalysisQuery = useQuery({
     queryKey: ['pre-analysis', selected?.incidentId],
     queryFn: () => getPreAnalysis(selected!.incidentId),
+    enabled: !!selected,
+    retry: false,
+  })
+
+  const routeEstimateQuery = useQuery({
+    queryKey: ['route-estimate', selected?.incidentId],
+    queryFn: () => getGroundRouteEstimate(selected!.incidentId),
     enabled: !!selected,
     retry: false,
   })
@@ -92,6 +105,21 @@ export function ActiveIncidentsPage() {
                 </div>
                 <div className="wf-body">
                   <div style={{ marginBottom: 10 }}>주소: {selected.address ?? '—'}</div>
+
+                  <div className="pre-analysis-section">
+                    <div className="section-title">후발대 경로·ETA (FR-20, 소방서 고정좌표 근사)</div>
+                    {routeEstimateQuery.isLoading && <div className="spinner-text">불러오는 중…</div>}
+                    {routeEstimateQuery.isError && <div className="spinner-text">아직 경로 정보가 없습니다.</div>}
+                    {routeEstimateQuery.data && (
+                      <div className="wf-box">
+                        <span className="label">{routeEstimateQuery.data.originLabel ?? '출발지 미상'} → 현장</span>
+                        <div>
+                          {formatEta(routeEstimateQuery.data.etaSeconds)}
+                          {routeEstimateQuery.data.distanceKm != null && ` · ${routeEstimateQuery.data.distanceKm}km`}
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   <div className="pre-analysis-section">
                     <div className="section-title">
