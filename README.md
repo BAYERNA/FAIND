@@ -17,7 +17,7 @@ AI가 화재를 감지하고 골든타임을 사수하는 지능형 소방 대�
 |---|---|---|
 | `backend/` | Java 21 + Spring Boot 3.5 | 구현 완료 (핵심 도메인 6개: auth/incident/device/report/statistics + integration/listener) |
 | `ai-server/` | Python 3.11 + FastAPI + LangGraph | 구현 완료 (FR-02 사전분석, FR-08 SOP대조, FR-24/26 화재감지) |
-| `notification-server/` | Node.js + NestJS | 예정 |
+| `notification-server/` | Node.js + NestJS | 구현 완료 (FR-06, FR-18, FR-22, FR-23) |
 
 ## ai-server 로컬 실행
 
@@ -47,11 +47,28 @@ cd backend
 Flyway가 기동 시 `backend/src/main/resources/db/migration`의 스키마를 자동 적용한다. 최초 관리자 계정은
 시드 데이터가 없으므로 직접 INSERT하거나(비밀번호는 BCrypt 해시) 별도 시딩 스크립트를 추가해야 한다.
 
-`AI_SERVER_BASE_URL`(기본 `http://localhost:8001`)로 ai-server 주소를 지정한다. ai-server가 없어도
-backend는 정상 동작한다 — AiAnalysisHttpAdapter가 CircuitBreaker+fallback으로 빈 결과를 대신 반환한다.
+`AI_SERVER_BASE_URL`(기본 `http://localhost:8001`), `NOTIFICATION_SERVER_BASE_URL`(기본
+`http://localhost:3001`)로 각 서비스 주소를 지정한다. 둘 다 없어도 backend는 정상 동작한다 —
+AiAnalysisHttpAdapter/NotificationHttpAdapter가 CircuitBreaker+fallback으로 처리한다.
 
-전체 스택(Docker Compose로 backend까지 함께)은 저장소 루트의 `docker-compose.yml`을 사용한다:
+## notification-server 로컬 실행
+
+```bash
+cd notification-server
+npm install
+cp .env.example .env   # JWT_SECRET은 backend와 반드시 동일해야 함
+npm run build && npm run start
+```
+
+backend를 먼저 기동해 Flyway로 `alerts`/`alert_acknowledgements` 테이블을 만든 뒤 실행할 것 —
+이 서비스는 `synchronize: false`로 매핑만 하고 스키마를 직접 만들지 않는다. 자세한 REST/WebSocket
+계약은 `notification-server/README.md` 참조.
+
+## 전체 스택 실행
 
 ```bash
 docker compose up --build
 ```
+
+postgres → redis → backend(Flyway 적용, healthcheck) → ai-server/notification-server 순으로
+의존성이 걸려 있다.

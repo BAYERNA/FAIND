@@ -1,0 +1,54 @@
+# FAIND Notification Server
+
+Node.js + NestJS. FR-06(위험정보 알림) · FR-18(선발대-후발대 인수인계) · FR-22(확인 흐름) ·
+FR-23(장비·인력 지원요청) 담당 (코드구조설계서 §4).
+
+## 로컬 실행
+
+```bash
+npm install
+cp .env.example .env   # JWT_SECRET은 backend와 반드시 동일해야 함
+npm run build && npm run start
+# 또는 개발 중: npm run start:dev
+```
+
+`alerts`/`alert_acknowledgements` 테이블은 backend(Java)의 Flyway 마이그레이션이 소유·생성한다.
+이 서비스는 `synchronize: false`로 매핑만 하며 스키마를 바꾸지 않는다 — 반드시 backend를 먼저
+한 번 기동해 마이그레이션을 적용한 뒤 이 서비스를 실행할 것.
+
+## 인증
+
+- REST: `Authorization: Bearer <backend가 발급한 JWT>` — backend `JwtTokenProvider`와 같은
+  `JWT_SECRET`(HS512)을 공유해 검증한다. 별도 로그인 기능은 없다.
+- WebSocket: `io(url, { auth: { token } })`로 연결 시 같은 JWT를 전달한다. 연결되면 자동으로
+  `user:{userId}` 개인 채널에 합류하고, `join`/`leave` 메시지로 `incident:{incidentId}` 채널을
+  구독/해제한다.
+- `/webhook/*`(backend 전용 인바운드)는 로그인 사용자 JWT가 아니라 `INTERNAL_WEBHOOK_TOKEN`
+  공유 비밀로 검증한다. 비워두면(로컬 기본값) 검증을 생략한다.
+
+## REST 엔드포인트
+
+| 메서드/경로 | 설명 |
+|---|---|
+| `GET /incidents/:id/alerts` | 해당 출동의 알림 피드 (CMD-002) |
+| `POST /incidents/:id/alerts/entry-info` | FR-18 진입정보 공유 |
+| `POST /incidents/:id/alerts/supply-request` | FR-23 장비·인력 지원요청 |
+| `POST /incidents/:id/alerts/risk-warning` | FR-06 위험정보 알림(사람이 직접) |
+| `POST /alerts/:id/acknowledgements` | FR-22 "확인했어요" |
+| `GET /alerts/:id/acknowledgements/freshness` | FR-22 확인자 목록 + 신선도("N분 전 확인, 갱신 필요") |
+| `POST /webhook/report-draft-created` | (backend 전용) FR-05 종료 확정 시 대원별 개인 채널 푸시 |
+| `POST /webhook/risk-warning` | (backend 전용) FR-06 AI/시스템 발신 위험알림 → alerts 영속화 + 브로드캐스트 |
+
+## WebSocket 이벤트
+
+| 이벤트 | 채널 | 설명 |
+|---|---|---|
+| `alert:created` | `incident:{id}` | 새 alert(진입정보/지원요청/위험알림) 생성 |
+| `alert:acknowledged` | `incident:{id}` | FR-22 확인 처리 |
+| `report:draft-created` | `user:{userId}` | FR-05 사후보고서 작성 알림 (alerts 테이블에는 남기지 않는 개인 푸시) |
+
+## 알려진 함정
+
+`alerts.alert_type` ENUM(§3.7)에는 "사후보고서 작성 알림"에 대응하는 값이 없다 — 그래서
+`report-draft-created`는 DB에 쓰지 않고 WebSocket 푸시만 한다. 나중에 이 알림도 이력으로 남겨야
+한다면 DB설계서에 `alert_type`을 추가하는 마이그레이션이 backend 쪽에 먼저 필요하다.
