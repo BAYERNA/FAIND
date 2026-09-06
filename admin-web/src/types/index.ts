@@ -111,6 +111,31 @@ export interface StatisticsSummary {
   recentJudgments: RecentJudgmentItem[]
 }
 
+// ADM-010 전체 CCTV 상시 감시(Phase 4) 전용 — commander-tablet CMD-002와 동일한 계약.
+export interface CameraResponse {
+  deviceId: string
+  deviceType: DeviceType
+  serialNo: string
+  streamUrl: string | null
+  status: 'NORMAL' | 'WARNING' | 'DISCONNECTED'
+}
+
+export type DangerLevel = 'SAFE' | 'WARNING' | 'DANGER' | 'CRITICAL'
+
+export interface LiveDangerSnapshot {
+  detected: boolean
+  confidence: number
+  label: string | null
+  reason: string | null
+  areaRatio: number
+  dangerLevel: DangerLevel | string
+  dangerScore: number
+  isFlickerVerified: boolean | null
+  growthRatio: number | null
+  spreadDirection: string | null
+  spreadSpeedPxPerSec: number | null
+}
+
 export interface ApiErrorBody {
   code: string
   message: string

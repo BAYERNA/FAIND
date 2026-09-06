@@ -187,6 +187,27 @@
   color: var(--color-ink-soft);
 }
 
+.tag.risk-danger {
+  color: var(--color-alert);
+  border-color: var(--color-alert);
+}
+
+.tag.risk-caution {
+  color: var(--color-drone);
+  border-color: var(--color-drone);
+}
+
+.tag.risk-normal {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.tag.risk-critical {
+  color: #fff;
+  background: var(--color-alert);
+  border-color: var(--color-alert);
+}
+
 .banner {
   margin-top: 12px;
   font-size: 13px;

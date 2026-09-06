@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: '/', label: 'ADM-001 관리자 홈', end: true },
   { to: '/accounts', label: 'ADM-002 대원 계정 목록' },
   { to: '/devices', label: 'ADM-006 기기 등록·매핑' },
+  { to: '/cctv-monitor', label: 'ADM-010 전체 CCTV 상시 감시' },
   { to: '/statistics', label: 'ADM-009 기관 통계 대시보드' },
 ]
 

@@ -46,7 +46,16 @@ function buildUrl(path: string, query?: RequestOptions['query']): string {
   return url.pathname + url.search
 }
 
-export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+// ai-server 호출. vite.config.ts가 /ai-stream → ai-server(/api/v1/streams)로 프록시한다.
+export function aiStreamRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  return request(`/ai-stream${path}`, options)
+}
+
+export function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  return request(path, options)
+}
+
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const token = getStoredToken()
   const response = await fetch(buildUrl(path, options.query), {
     method: options.method ?? 'GET',

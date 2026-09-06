@@ -8,6 +8,7 @@ import { AdminHomePage } from './pages/AdminHomePage'
 import { AccountListPage } from './pages/AccountListPage'
 import { AccountFormPage } from './pages/AccountFormPage'
 import { DeviceListPage } from './pages/DeviceListPage'
+import { CctvMonitorPage } from './pages/CctvMonitorPage'
 import { StatisticsPage } from './pages/StatisticsPage'
 
 const queryClient = new QueryClient({
@@ -74,6 +75,14 @@ export default function App() {
               element={
                 <RequireAuth>
                   <StatisticsPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/cctv-monitor"
+              element={
+                <RequireAuth>
+                  <CctvMonitorPage />
                 </RequireAuth>
               }
             />
