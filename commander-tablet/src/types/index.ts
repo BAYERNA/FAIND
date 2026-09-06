@@ -141,6 +141,24 @@ export interface CameraResponse {
   status: 'NORMAL' | 'WARNING' | 'DISCONNECTED'
 }
 
+// CMD-002 라이브 카메라 뷰의 위험도 배지(FR-24/26 Phase 3) — ai-server GET /streams/danger 응답.
+// callbackSent/incidentId는 이 경로에서 항상 false/null(콜백을 보내지 않으므로) 이라 UI에서 쓰지 않는다.
+export type DangerLevel = 'SAFE' | 'WARNING' | 'DANGER' | 'CRITICAL'
+
+export interface LiveDangerSnapshot {
+  detected: boolean
+  confidence: number
+  label: string | null
+  reason: string | null
+  areaRatio: number
+  dangerLevel: DangerLevel | string
+  dangerScore: number
+  isFlickerVerified: boolean | null
+  growthRatio: number | null
+  spreadDirection: string | null
+  spreadSpeedPxPerSec: number | null
+}
+
 // notification-server 계약 (alerts.entity.ts / ack.service.ts 실제 응답 형태를 그대로 따른다)
 export type AlertType = 'RISK_WARNING' | 'EVACUATION' | 'STATUS_CHANGE' | 'ENTRY_INFO' | 'SUPPLY_REQUEST'
 export type InfoCategory = 'ENTRY' | 'HAZARD'

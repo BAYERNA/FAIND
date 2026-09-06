@@ -1,11 +1,12 @@
-"""FR-24/26 CMD-002 라이브 카메라 뷰 — 순수 영상 중계(relay)만 담당한다.
+"""FR-24/26 CMD-002 라이브 카메라 뷰 — 영상 중계(relay)와 위험도 스냅샷을 함께 담당한다.
 
-위험 판단·경고는 이 엔드포인트의 책임이 아니다 — 그건 여전히 CCTV 폴링(/fire-detection/analyze)
-경로에서만 나온다. 여기서 감지 박스를 얹어 그리기 시작하면 "이 화면에 박스가 없으면 안전하다"는
-잘못된 신호를 줄 위험이 있어, 영상과 판단을 의도적으로 분리했다(Phase 3에서 위험 알림을 별도
-채널로 붙일 예정).
+/mjpeg는 순수 영상만 내보낸다 — 여기서 감지 박스를 얹어 그리면 "이 화면에 박스가 없으면
+안전하다"는 잘못된 신호를 줄 위험이 있어, 영상과 판단을 의도적으로 분리했다. 대신 /danger가
+같은 카메라에 대한 위험도 판단(danger_level/score, 깜빡임 검증, 확산 신호)을 별도 채널로
+내려준다 — 프런트가 영상 위에 겹쳐 그리지 않고 옆에 배지로만 표시하도록(코드구조설계서와
+동일하게 판단·표시를 분리 유지).
 
-프런트엔드가 `<img src="...">`로 직접 소비하는 걸 전제로 multipart/x-mixed-replace로 응답한다.
+프런트엔드가 `<img src="...">`로 직접 소비하는 걸 전제로 /mjpeg는 multipart/x-mixed-replace로 응답한다.
 """
 
 import asyncio
@@ -14,8 +15,12 @@ import os
 from typing import AsyncGenerator
 
 import cv2
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
+
+from app.agents.fire_detection_agent import FireDetectionAgent
+from app.api.v1.fire_detection_router import _result_kwargs, get_fire_detection_agent
+from app.schemas.fire_detection_schema import FireDetectionResult
 
 logger = logging.getLogger(__name__)
 
@@ -69,3 +74,17 @@ async def mjpeg_stream(
         _mjpeg_frames(stream_url),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
+
+
+@router.get("/danger", response_model=FireDetectionResult)
+async def live_danger(
+    stream_url: str = Query(..., description="CCTV/드론 스트림 주소 또는 로컬 이미지 경로(테스트용)"),
+    device_id: str = Query(..., description="깜빡임·확산 이력을 카메라별로 구분하는 키(카메라 deviceId)"),
+    agent: FireDetectionAgent = Depends(get_fire_detection_agent),
+):
+    # /fire-detection/analyze와 같은 agent(=같은 YoloService 인스턴스)를 쓴다 — 카메라별
+    # 깜빡임·확산 이력(_camera_history)이 device_id로 이어지려면 인스턴스가 같아야 한다.
+    # backend 콜백은 하지 않는다: 이 엔드포인트는 지휘관이 보고 있는 화면의 현재 위험도를
+    # 읽기만 할 뿐, incident를 새로 만들거나 확정하지 않는다(그 경로는 여전히 CCTV 폴링뿐).
+    result = await agent.run({"stream_url": stream_url, "device_id": device_id})
+    return FireDetectionResult(reason=result.get("reason"), **_result_kwargs(result))

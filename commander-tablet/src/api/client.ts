@@ -80,3 +80,8 @@ export function apiRequest<T>(path: string, options: RequestOptions = {}): Promi
 export function notifyRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   return request<T>(`/notify${path}`, options)
 }
+
+// ai-server 호출. vite.config.ts가 /ai-stream → ai-server(/api/v1/streams)로 프록시한다.
+export function aiStreamRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  return request<T>(`/ai-stream${path}`, options)
+}

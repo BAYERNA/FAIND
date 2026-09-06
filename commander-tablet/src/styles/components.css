@@ -206,6 +206,12 @@
   border-color: var(--color-success);
 }
 
+.tag.risk-critical {
+  color: #fff;
+  background: var(--color-alert);
+  border-color: var(--color-alert);
+}
+
 .banner {
   margin-top: 12px;
   font-size: 13px;
