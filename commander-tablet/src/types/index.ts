@@ -21,6 +21,16 @@ export interface AccountResponse {
   updatedAt: string | null
 }
 
+export interface Page<T> {
+  content: T[]
+  totalElements: number
+  totalPages: number
+  number: number
+  size: number
+  first: boolean
+  last: boolean
+}
+
 export type IncidentStatus = 'AI_SUSPECTED' | 'DISPATCHED' | 'IN_PROGRESS' | 'CLOSED'
 export type IncidentSource = 'MANUAL_REPORT' | 'CCTV_AUTO_DETECTION'
 

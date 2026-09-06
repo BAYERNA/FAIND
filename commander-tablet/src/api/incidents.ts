@@ -7,6 +7,11 @@ import type {
   PreAnalysisResponse,
 } from '../types'
 
+export interface AssignRequest {
+  userId: string
+  roleInIncident?: string
+}
+
 // CMD-001 진입 화면: DISPATCHED/IN_PROGRESS 전체 (역할=COMMANDER/ADMIN 전용, backend에서 강제)
 export function getActiveIncidents(): Promise<IncidentResponse[]> {
   return apiRequest<IncidentResponse[]>('/api/v1/incidents/active')
@@ -29,6 +34,14 @@ export function getMonitoring(incidentId: string): Promise<MonitoringResponse> {
 // CMD-002 드론 정찰 카드(FR-26) AI 판단 이력
 export function getAiJudgments(incidentId: string): Promise<AiJudgmentSummaryResponse[]> {
   return apiRequest<AiJudgmentSummaryResponse[]>(`/api/v1/incidents/${incidentId}/ai-judgments`)
+}
+
+// FR-19: 대원 배정 — 해당 출동의 최초 배정자는 자동으로 선발대·통신담당이 된다 (backend에서 산출).
+export function assignResponder(incidentId: string, request: AssignRequest): Promise<AssignmentResponse> {
+  return apiRequest<AssignmentResponse>(`/api/v1/incidents/${incidentId}/assignments`, {
+    method: 'POST',
+    body: request,
+  })
 }
 
 // FR-19: 지휘관이 통신 담당 재지정

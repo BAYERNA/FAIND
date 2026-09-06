@@ -26,7 +26,7 @@ backend의 `faind.cors.allowed-origins`(기본값에 `http://localhost:5174` 포
 | `/login` | CMN-001 | 통합 로그인 (FR-01) — COMMANDER 역할 전용 |
 | `/initial-password` | CMN-002 | 최초 비밀번호 설정 |
 | `/` | CMD-001 | 출동지령·사전분석 — DISPATCHED/IN_PROGRESS 출동 목록 + 사전분석(FR-02, NFR-03) |
-| `/incidents/:incidentId` | CMD-002 | 현장 모니터링 대시보드 — 위험도순 대원 상태(FR-03), 통신담당 재지정(FR-19), 드론 정찰(FR-26), 알림·인수인계 피드(FR-06/18/22/23), 실시간 WebSocket |
+| `/incidents/:incidentId` | CMD-002 | 현장 모니터링 대시보드 — 대원 배정(FR-19), 위험도순 대원 상태(FR-03), 통신담당 재지정(FR-19), 드론 정찰(FR-26), 알림·인수인계 피드(FR-06/18/22/23), 실시간 WebSocket |
 | `/incidents/:incidentId/responders/:userId` | CMD-003 | 대원 상세 — 최신 생체·환경 데이터(FR-04), 관련 알림 이력 |
 | CMD-002 내 다이얼로그 | CMD-006 | 출동 종료 확정 (FR-05) |
 
@@ -36,9 +36,12 @@ backend의 `faind.cors.allowed-origins`(기본값에 `http://localhost:5174` 포
   전엔 담당 지휘관이 정해지지 않음), 지휘관별 필터 대신 backend `GET /api/v1/incidents/active`가
   DISPATCHED/IN_PROGRESS 전체를 반환한다 — `@PreAuthorize("hasAnyRole('COMMANDER','ADMIN')")`로
   역할을 제한한다 (backend 갭 보강 작업 참조).
-- **최소 권한 확장**: 지휘관이 현장 대원·드론을 식별하려면 `GET /api/v1/accounts/{id}`,
-  `GET /api/v1/devices/{id}` 단건 조회가 필요해, 목록·등록·수정은 ADMIN 전용으로 유지한 채 이
-  두 엔드포인트만 COMMANDER에게 열었다.
+- **최소 권한 확장**: 지휘관이 현장 대원·드론을 식별하고 배정하려면 `GET /api/v1/accounts`(목록
+  검색)·`GET /api/v1/accounts/{id}`, `GET /api/v1/devices/{id}` 조회가 필요해, 계정 등록·수정·
+  비활성화는 ADMIN 전용으로 유지한 채 이 조회 엔드포인트만 COMMANDER에게 열었다.
+- **대원 배정(FR-19)**: CMD-002 "배정 대원" 패널의 "+ 대원 배정"에서 이름·사번·소속으로 RESPONDER를
+  검색해 배정한다. 이미 배정된 대원은 후보 목록에서 제외해 `UNIQUE(incident_id, user_id)` 위반을
+  UI 단에서 미리 막고, 해당 출동의 최초 배정자는 backend가 자동으로 선발대·통신담당으로 지정한다.
 - **NFR-01/02/05**: admin-web과 동일한 `tokens.css`/`components.css`를 그대로 재사용해 시각적
   일관성을 유지하고, 모든 저장·발송 액션은 `Banner`로 성공/실패를 명시한다.
 - **실시간 갱신**: CMD-002는 notification-server의 `incident:{id}` WebSocket 채널에 join해

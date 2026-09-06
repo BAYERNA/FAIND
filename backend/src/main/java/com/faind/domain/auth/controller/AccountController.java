@@ -33,7 +33,10 @@ public class AccountController {
     this.accountService = accountService;
   }
 
+  // CMD-002 대원 배정: 지휘관도 배정 가능한 대원을 검색해야 하므로 목록 조회는 COMMANDER에게도 연다
+  // (등록·수정·비활성화는 여전히 ADMIN 전용).
   @GetMapping
+  @PreAuthorize("hasAnyRole('COMMANDER','ADMIN')")
   public ResponseEntity<Page<AccountResponse>> list(
       @RequestParam(required = false) String keyword,
       @RequestParam(required = false, defaultValue = "ALL") String role,

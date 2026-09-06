@@ -6,6 +6,7 @@ import { Banner } from '../components/Banner'
 import { ResponderRow } from '../components/ResponderRow'
 import { DroneReconCard } from '../components/DroneReconCard'
 import { AlertsPanel } from '../components/AlertsPanel'
+import { AssignResponderPanel } from '../components/AssignResponderPanel'
 import { CloseConfirmDialog } from '../components/CloseConfirmDialog'
 import { closeIncident, getAiJudgments, getMonitoring, reassignCommsLead } from '../api/incidents'
 import { getAccount } from '../api/accounts'
@@ -180,6 +181,12 @@ export function IncidentMonitoringPage() {
                       onReassignCommsLead={() => reassignMutation.mutate(assignment.userId)}
                     />
                   ))}
+                  {data.incident.status !== 'CLOSED' && (
+                    <AssignResponderPanel
+                      incidentId={incidentId}
+                      assignedUserIds={data.assignments.map((a) => a.userId)}
+                    />
+                  )}
                 </div>
               </div>
 
