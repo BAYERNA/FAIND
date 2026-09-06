@@ -15,6 +15,7 @@ public record DeviceResponse(
     String mappedUserTeam,
     BigDecimal latitude,
     BigDecimal longitude,
+    String streamUrl,
     String status,
     Integer batteryLevel,
     LocalDateTime registeredAt) {
@@ -34,6 +35,7 @@ public record DeviceResponse(
         mappedUserTeam,
         device.getLatitude(),
         device.getLongitude(),
+        device.getStreamUrl(),
         device.getStatus(),
         device.getBatteryLevel(),
         device.getRegisteredAt());

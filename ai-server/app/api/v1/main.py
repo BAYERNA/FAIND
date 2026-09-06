@@ -2,9 +2,10 @@
 
 from fastapi import APIRouter
 
-from app.api.v1 import fire_detection_router, pre_analysis_router, sop_match_router
+from app.api.v1 import fire_detection_router, pre_analysis_router, sop_match_router, stream_router
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(pre_analysis_router.router)
 api_router.include_router(sop_match_router.router)
 api_router.include_router(fire_detection_router.router)
+api_router.include_router(stream_router.router)

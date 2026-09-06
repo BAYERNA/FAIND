@@ -2,6 +2,7 @@ package com.faind.domain.device.service;
 
 import com.faind.domain.auth.dto.AccountResponse;
 import com.faind.domain.auth.service.AccountService;
+import com.faind.domain.device.dto.CameraResponse;
 import com.faind.domain.device.dto.DeviceRequest;
 import com.faind.domain.device.dto.DeviceResponse;
 import com.faind.domain.device.dto.NearestDroneResponse;
@@ -76,9 +77,12 @@ public class DeviceService {
       longitude = request.longitude();
     }
 
+    String streamUrl = deviceType.isFixedLocationAsset() ? request.streamUrl() : null;
+
     // 등록(row 생성)과 매핑(current_user_id 설정)이 같은 save 호출, 같은 트랜잭션 안에서 실행된다.
     Device device = new Device(
-        deviceType, request.serialNo(), request.connectionType(), mappedUserId, latitude, longitude, request.batteryLevel());
+        deviceType, request.serialNo(), request.connectionType(), mappedUserId, latitude, longitude,
+        request.batteryLevel(), streamUrl);
     deviceRepository.save(device);
     return get(device.getDeviceId());
   }
@@ -88,6 +92,19 @@ public class DeviceService {
     Device device = findDevice(deviceId);
     device.relocate(latitude, longitude);
     return get(deviceId);
+  }
+
+  @Transactional
+  public DeviceResponse updateStreamUrl(UUID deviceId, String streamUrl) {
+    Device device = findDevice(deviceId);
+    device.updateStreamUrl(streamUrl);
+    return get(deviceId);
+  }
+
+  // CMD-002 라이브 카메라 선택 드롭다운(FR-24/26) - COMMANDER도 접근 가능해야 하므로 대원 매핑
+  // 정보 없이 카메라 목록만 좁게 반환한다.
+  public List<CameraResponse> listCameras() {
+    return deviceRepository.findByDeviceType(DeviceType.CCTV).stream().map(CameraResponse::from).toList();
   }
 
   private Page<DeviceResponse> enrich(Page<Device> devices) {

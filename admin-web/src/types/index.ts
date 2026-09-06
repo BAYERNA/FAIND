@@ -48,6 +48,7 @@ export interface DeviceResponse {
   mappedUserTeam: string | null
   latitude: number | null
   longitude: number | null
+  streamUrl: string | null
   status: 'NORMAL' | 'WARNING' | 'DISCONNECTED'
   batteryLevel: number | null
   registeredAt: string

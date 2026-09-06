@@ -1,5 +1,6 @@
 package com.faind.domain.device.controller;
 
+import com.faind.domain.device.dto.CameraResponse;
 import com.faind.domain.device.dto.DeviceRequest;
 import com.faind.domain.device.dto.DeviceResponse;
 import com.faind.domain.device.service.DeviceMappingService;
@@ -7,6 +8,7 @@ import com.faind.domain.device.service.DeviceService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -50,6 +52,13 @@ public class DeviceController {
     return ResponseEntity.ok(deviceService.get(deviceId));
   }
 
+  // CMD-002 라이브 카메라 선택 드롭다운(FR-24/26) - 대원 매핑 정보 없이 카메라 목록만 좁게 노출.
+  @GetMapping("/cameras")
+  @PreAuthorize("hasAnyRole('COMMANDER','ADMIN')")
+  public ResponseEntity<List<CameraResponse>> listCameras() {
+    return ResponseEntity.ok(deviceService.listCameras());
+  }
+
   @PostMapping
   public ResponseEntity<DeviceResponse> register(@Valid @RequestBody DeviceRequest request) {
     return ResponseEntity.ok(deviceService.register(request));
@@ -65,7 +74,15 @@ public class DeviceController {
     return ResponseEntity.ok(deviceService.relocate(deviceId, request.latitude(), request.longitude()));
   }
 
+  @PatchMapping("/{deviceId}/stream-url")
+  public ResponseEntity<DeviceResponse> updateStreamUrl(
+      @PathVariable UUID deviceId, @RequestBody StreamUrlRequest request) {
+    return ResponseEntity.ok(deviceService.updateStreamUrl(deviceId, request.streamUrl()));
+  }
+
   public record RemapRequest(@NotNull UUID userId) {}
 
   public record RelocateRequest(@NotNull BigDecimal latitude, @NotNull BigDecimal longitude) {}
+
+  public record StreamUrlRequest(@NotNull String streamUrl) {}
 }

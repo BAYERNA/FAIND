@@ -23,6 +23,12 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
       },
+      // CMD-002 라이브 카메라 뷰(FR-24/26) — ai-server의 MJPEG 중계 엔드포인트로 프록시한다.
+      '/ai-stream': {
+        target: process.env.VITE_AI_SERVER_URL ?? 'http://localhost:8001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/ai-stream/, '/api/v1/streams'),
+      },
     },
   },
 })

@@ -4,7 +4,14 @@ import { AdminLayout } from '../components/AdminLayout'
 import { Banner } from '../components/Banner'
 import { ApiError } from '../api/client'
 import { listAccounts } from '../api/accounts'
-import { listDevices, registerDevice, relocateDevice, remapDevice, type DeviceRegisterInput } from '../api/devices'
+import {
+  listDevices,
+  registerDevice,
+  relocateDevice,
+  remapDevice,
+  updateDeviceStreamUrl,
+  type DeviceRegisterInput,
+} from '../api/devices'
 import type { DeviceType } from '../types'
 
 const DEVICE_TYPE_LABEL: Record<DeviceType, string> = {
@@ -35,6 +42,9 @@ export function DeviceListPage() {
   const [relocateLat, setRelocateLat] = useState('')
   const [relocateLng, setRelocateLng] = useState('')
   const [relocateError, setRelocateError] = useState<string | null>(null)
+  const [streamUrlTargetId, setStreamUrlTargetId] = useState<string | null>(null)
+  const [streamUrlInput, setStreamUrlInput] = useState('')
+  const [streamUrlError, setStreamUrlError] = useState<string | null>(null)
 
   const devicesQuery = useQuery({
     queryKey: ['devices', keyword, deviceType],
@@ -79,6 +89,19 @@ export function DeviceListPage() {
     onError: (err) => setRelocateError(err instanceof ApiError ? err.message : '위치 수정에 실패했습니다.'),
   })
 
+  // FR-24/26: CMD-002 라이브 카메라 뷰가 참조하는 스트림 주소. 등록 이후에도 여기서 고쳐 넣을 수 있어야
+  // relocateMutation과 같은 "화면에 안 붙어있던" 결함을 반복하지 않는다.
+  const streamUrlMutation = useMutation({
+    mutationFn: ({ deviceId, streamUrl }: { deviceId: string; streamUrl: string }) =>
+      updateDeviceStreamUrl(deviceId, streamUrl),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['devices'] })
+      setStreamUrlTargetId(null)
+      setStreamUrlError(null)
+    },
+    onError: (err) => setStreamUrlError(err instanceof ApiError ? err.message : '스트림 주소 수정에 실패했습니다.'),
+  })
+
   const isPersonal = PERSONAL_TYPES.includes(form.deviceType)
   const isFixed = FIXED_LOCATION_TYPES.includes(form.deviceType)
 
@@ -98,6 +121,12 @@ export function DeviceListPage() {
     e.preventDefault()
     if (!relocateLat || !relocateLng) return
     relocateMutation.mutate({ deviceId, latitude: Number(relocateLat), longitude: Number(relocateLng) })
+  }
+
+  function handleStreamUrlSubmit(e: FormEvent, deviceId: string) {
+    e.preventDefault()
+    if (!streamUrlInput.trim()) return
+    streamUrlMutation.mutate({ deviceId, streamUrl: streamUrlInput.trim() })
   }
 
   return (
@@ -192,6 +221,18 @@ export function DeviceListPage() {
                         required
                       />
                     </div>
+                    <div>
+                      <label className="field-label" htmlFor="streamUrl">
+                        스트림 주소 (선택, 나중에 등록해도 됨)
+                      </label>
+                      <input
+                        id="streamUrl"
+                        className="wf-field"
+                        placeholder="예: http://192.168.0.10:81/stream"
+                        value={form.streamUrl ?? ''}
+                        onChange={(e) => setForm((f) => ({ ...f, streamUrl: e.target.value || undefined }))}
+                      />
+                    </div>
                   </>
                 )}
               </div>
@@ -247,6 +288,7 @@ export function DeviceListPage() {
                   <th>매핑대원</th>
                   <th>소속팀</th>
                   <th>위치</th>
+                  <th>스트림 주소</th>
                   <th>상태</th>
                   <th>배터리</th>
                   <th>관리</th>
@@ -264,6 +306,9 @@ export function DeviceListPage() {
                       {device.latitude != null && device.longitude != null
                         ? `${device.latitude.toFixed(4)}, ${device.longitude.toFixed(4)}`
                         : '—'}
+                    </td>
+                    <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {FIXED_LOCATION_TYPES.includes(device.deviceType) ? (device.streamUrl ?? '— (미등록)') : '—'}
                     </td>
                     <td style={{ color: device.status === 'NORMAL' ? undefined : 'var(--color-alert)' }}>
                       {device.status === 'NORMAL' ? '정상' : device.status === 'WARNING' ? '저전압' : '연결끊김'}
@@ -350,12 +395,47 @@ export function DeviceListPage() {
                             위치 수정
                           </button>
                         ))}
+                      {FIXED_LOCATION_TYPES.includes(device.deviceType) &&
+                        (streamUrlTargetId === device.deviceId ? (
+                          <form
+                            style={{ display: 'flex', gap: 4, marginTop: 4 }}
+                            onSubmit={(e) => handleStreamUrlSubmit(e, device.deviceId)}
+                          >
+                            <input
+                              className="wf-field"
+                              style={{ padding: '4px 6px', fontSize: 11, width: 140 }}
+                              placeholder="스트림 주소"
+                              value={streamUrlInput}
+                              onChange={(e) => setStreamUrlInput(e.target.value)}
+                              autoFocus
+                              required
+                            />
+                            <button type="submit" className="wf-btn primary small" disabled={streamUrlMutation.isPending}>
+                              확인
+                            </button>
+                            <button type="button" className="wf-btn small" onClick={() => setStreamUrlTargetId(null)}>
+                              취소
+                            </button>
+                          </form>
+                        ) : (
+                          <button
+                            type="button"
+                            className="wf-btn small"
+                            style={{ marginTop: 4 }}
+                            onClick={() => {
+                              setStreamUrlTargetId(device.deviceId)
+                              setStreamUrlInput(device.streamUrl ?? '')
+                            }}
+                          >
+                            스트림 주소 수정
+                          </button>
+                        ))}
                     </td>
                   </tr>
                 ))}
                 {devicesQuery.data.content.length === 0 && (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: 'center' }}>
+                    <td colSpan={10} style={{ textAlign: 'center' }}>
                       검색 결과가 없습니다.
                     </td>
                   </tr>
@@ -365,6 +445,7 @@ export function DeviceListPage() {
           )}
           {remapError && <Banner kind="error" message={remapError} />}
           {relocateError && <Banner kind="error" message={relocateError} />}
+          {streamUrlError && <Banner kind="error" message={streamUrlError} />}
         </div>
       </div>
     </AdminLayout>

@@ -126,9 +126,19 @@ export interface DeviceResponse {
   mappedUserTeam: string | null
   latitude: number | null
   longitude: number | null
+  streamUrl: string | null
   status: 'NORMAL' | 'WARNING' | 'DISCONNECTED'
   batteryLevel: number | null
   registeredAt: string
+}
+
+// CMD-002 라이브 카메라 선택 드롭다운 전용 — DeviceResponse보다 좁은 필드만 내려온다.
+export interface CameraResponse {
+  deviceId: string
+  deviceType: DeviceType
+  serialNo: string
+  streamUrl: string | null
+  status: 'NORMAL' | 'WARNING' | 'DISCONNECTED'
 }
 
 // notification-server 계약 (alerts.entity.ts / ack.service.ts 실제 응답 형태를 그대로 따른다)

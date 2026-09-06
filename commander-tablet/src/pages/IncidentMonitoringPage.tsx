@@ -5,6 +5,7 @@ import { TabletLayout } from '../components/TabletLayout'
 import { Banner } from '../components/Banner'
 import { ResponderRow } from '../components/ResponderRow'
 import { DroneReconCard } from '../components/DroneReconCard'
+import { LiveCameraPanel } from '../components/LiveCameraPanel'
 import { AlertsPanel } from '../components/AlertsPanel'
 import { AssignResponderPanel } from '../components/AssignResponderPanel'
 import { CloseConfirmDialog } from '../components/CloseConfirmDialog'
@@ -148,6 +149,8 @@ export function IncidentMonitoringPage() {
 
           <div className="monitoring-layout">
             <div>
+              <LiveCameraPanel />
+
               <div className="wf" style={{ marginBottom: 14 }}>
                 <div className="wf-header">
                   <span>현장 대원 상태 (위험도순)</span>

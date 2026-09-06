@@ -42,6 +42,10 @@ public class Device {
   @Column(precision = 9, scale = 6)
   private BigDecimal longitude;
 
+  // FR-24/26 실시간 영상 뷰(CMD-002) - CCTV/DRONE만 의미 있음. 웨어러블류는 항상 null.
+  @Column(name = "stream_url", length = 500)
+  private String streamUrl;
+
   @Column(nullable = false, length = 15)
   private String status = "NORMAL"; // NORMAL / WARNING / DISCONNECTED
 
@@ -63,7 +67,8 @@ public class Device {
       UUID currentUserId,
       BigDecimal latitude,
       BigDecimal longitude,
-      Integer batteryLevel) {
+      Integer batteryLevel,
+      String streamUrl) {
     this.deviceType = deviceType;
     this.serialNo = serialNo;
     this.connectionType = connectionType;
@@ -71,6 +76,7 @@ public class Device {
     this.latitude = latitude;
     this.longitude = longitude;
     this.batteryLevel = batteryLevel;
+    this.streamUrl = streamUrl;
     this.status = "NORMAL";
     this.registeredAt = LocalDateTime.now();
   }
@@ -92,6 +98,14 @@ public class Device {
     }
     this.latitude = newLatitude;
     this.longitude = newLongitude;
+    this.updatedAt = LocalDateTime.now();
+  }
+
+  public void updateStreamUrl(String newStreamUrl) {
+    if (!deviceType.isFixedLocationAsset()) {
+      throw new IllegalStateException("스트림 주소는 CCTV/드론 자산만 설정할 수 있습니다.");
+    }
+    this.streamUrl = newStreamUrl;
     this.updatedAt = LocalDateTime.now();
   }
 
@@ -127,6 +141,10 @@ public class Device {
 
   public BigDecimal getLongitude() {
     return longitude;
+  }
+
+  public String getStreamUrl() {
+    return streamUrl;
   }
 
   public String getStatus() {
