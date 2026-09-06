@@ -124,3 +124,114 @@ jobs:
       - run: npx tsc -b
       - run: npx oxlint
       - run: npm run test
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    # Phase 10: 지금까지 매 Phase마다 수동으로 해온 브라우저 검증(로그인 성공/실패, 보호된
+    # 화면 접근)을 코드화했다. 3개 프론트엔드가 공유하는 backend+notification-server를 이
+    # job 하나에서 한 번만 띄우고, 그 위에서 세 앱의 Playwright 스위트를 차례로 돌린다
+    # (3개 job으로 쪼개면 backend를 세 번 띄우게 되어 낭비다).
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: faind
+          POSTGRES_USER: faind
+          POSTGRES_PASSWORD: faind
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U faind -d faind"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      JWT_SECRET: e2e-ci-secret-key-not-for-production-0123456789
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            notification-server/package-lock.json
+            admin-web/package-lock.json
+            commander-tablet/package-lock.json
+            responder-app/package-lock.json
+
+      - name: backend 빌드·기동 (Flyway 마이그레이션 포함)
+        working-directory: backend
+        run: |
+          ./gradlew bootJar --no-daemon
+          nohup java -jar build/libs/*.jar > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8080/actuator/health && exit 0
+            sleep 2
+          done
+          echo "backend가 기동하지 못했다"; cat /tmp/backend.log; exit 1
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/faind
+          DB_USERNAME: faind
+          DB_PASSWORD: faind
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+
+      - name: notification-server 빌드·기동
+        working-directory: notification-server
+        run: |
+          npm ci
+          npm run build
+          nohup node dist/main > /tmp/notification-server.log 2>&1 &
+          for i in $(seq 1 15); do
+            (echo > /dev/tcp/localhost/3001) 2>/dev/null && exit 0
+            sleep 2
+          done
+          echo "notification-server가 기동하지 못했다"; cat /tmp/notification-server.log; exit 1
+        env:
+          DB_HOST: localhost
+          DB_USERNAME: faind
+          DB_PASSWORD: faind
+          DB_NAME: faind
+
+      # 세 앱 모두 scripts/seed-e2e-accounts.sql(psql)·레이트리미팅 카운터 초기화(redis-cli)를
+      # globalSetup에서 직접 실행한다 — ubuntu-latest 러너에는 둘 다 기본 설치돼 있다.
+      - name: admin-web E2E
+        working-directory: admin-web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test
+
+      - name: commander-tablet E2E
+        working-directory: commander-tablet
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test
+
+      - name: responder-app E2E
+        working-directory: responder-app
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test
+
+      - name: 실패 시 Playwright 리포트 업로드
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            admin-web/playwright-report
+            commander-tablet/playwright-report
+            responder-app/playwright-report
+          retention-days: 7

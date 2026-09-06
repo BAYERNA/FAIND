@@ -29,6 +29,21 @@ Vitest + React Testing Library. `api/client.ts`(NFR-02 성공/실패 구분)·`a
 세션 영속화)에 더해 `dangerDisplay.ts`(FR-24/26 위험도·확산 표시 상수 맵)를 검증한다. 실제
 backend/notification-server 호출 없이 `fetch`를 목(mock)으로 대체한다.
 
+### E2E (Playwright)
+
+```bash
+npm run test:e2e
+```
+
+지금까지 매 Phase마다 수동으로 해온 브라우저 검증(로그인 성공/실패, 보호된 화면 접근)을
+코드화했다. 이 앱의 dev server(`webServer`)는 자동으로 띄우지만, **backend(8080)와
+Postgres·Redis는 미리 떠 있어야 한다** — `globalSetup`이 `../scripts/seed-e2e-accounts.sql`을
+psql로 적용해 전용 계정(E2E-COMMANDER 등, 비밀번호는 스크립트 주석 참조)을 심고 이전 실행의
+로그인 실패 카운터(Phase 10 레이트리미팅)를 초기화한다. 이 환경에 미리 설치된 Chromium
+리비전이 `@playwright/test`가 기본 요구하는 리비전과 다를 수 있어 `playwright.config.ts`가
+`executablePath`를 직접 지정한다 — 다른 환경에서 이 경로가 없다면 `npx playwright install`로
+받은 뒤 그 옵션을 지워도 된다.
+
 ## 화면 구성
 
 | 경로 | 화면 | 기능 |
