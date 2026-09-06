@@ -14,4 +14,6 @@ public interface DeviceRepository extends JpaRepository<Device, UUID>, JpaSpecif
   List<Device> findByDeviceType(DeviceType deviceType);
 
   List<Device> findByDeviceTypeAndStatus(DeviceType deviceType, String status);
+
+  long countByStatusIn(List<String> statuses);
 }

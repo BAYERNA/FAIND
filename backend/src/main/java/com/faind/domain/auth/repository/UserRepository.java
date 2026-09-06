@@ -11,4 +11,6 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
   Optional<User> findByBadgeNumber(String badgeNumber);
 
   boolean existsByBadgeNumber(String badgeNumber);
+
+  long countByRoleAndStatus(String role, String status);
 }

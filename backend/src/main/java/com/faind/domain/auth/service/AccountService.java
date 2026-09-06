@@ -104,6 +104,12 @@ public class AccountService {
         .collect(java.util.stream.Collectors.toMap(User::getUserId, AccountResponse::from, (a, b) -> a));
   }
 
+  // ADM-001 관리자 홈(FR-09) "근무 대원" 카드. 근무편성(ADM-005)은 Won't Have라 별도 duty-shift
+  // 개념이 없으므로, 이번 스코프에서는 "활성 대원 계정 수"를 근사치로 사용한다.
+  public long countActiveResponders() {
+    return userRepository.countByRoleAndStatus("RESPONDER", "ACTIVE");
+  }
+
   private User findUser(UUID userId) {
     return userRepository.findById(userId).orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
   }

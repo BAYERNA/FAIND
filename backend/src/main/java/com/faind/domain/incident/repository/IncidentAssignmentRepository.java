@@ -12,6 +12,8 @@ public interface IncidentAssignmentRepository extends JpaRepository<IncidentAssi
 
   boolean existsByIncidentId(UUID incidentId);
 
+  long countByIncidentId(UUID incidentId);
+
   Optional<IncidentAssignment> findByIncidentIdAndCommsLeadTrue(UUID incidentId);
 
   Optional<IncidentAssignment> findByIncidentIdAndUserId(UUID incidentId, UUID userId);

@@ -121,6 +121,11 @@ public class DeviceService {
         .map(d -> new NearestDroneResponse(d.getDeviceId(), d.getLatitude(), d.getLongitude(), d.getSerialNo()));
   }
 
+  // ADM-001 관리자 홈(FR-09) "기기 이상" 카드.
+  public long countAnomalies() {
+    return deviceRepository.countByStatusIn(List.of("WARNING", "DISCONNECTED"));
+  }
+
   private Device findDevice(UUID deviceId) {
     return deviceRepository.findById(deviceId).orElseThrow(() -> new BusinessException(ErrorCode.DEVICE_NOT_FOUND));
   }

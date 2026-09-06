@@ -18,6 +18,7 @@ AI가 화재를 감지하고 골든타임을 사수하는 지능형 소방 대�
 | `backend/` | Java 21 + Spring Boot 3.5 | 구현 완료 (핵심 도메인 6개: auth/incident/device/report/statistics + integration/listener) |
 | `ai-server/` | Python 3.11 + FastAPI + LangGraph | 구현 완료 (FR-02 사전분석, FR-08 SOP대조, FR-24/26 화재감지) |
 | `notification-server/` | Node.js + NestJS | 구현 완료 (FR-06, FR-18, FR-22, FR-23) |
+| `admin-web/` | React 19 + TypeScript + Vite | 구현 완료 (CMN-001/002, ADM-001/002/003/006/009) |
 
 ## ai-server 로컬 실행
 
@@ -63,6 +64,18 @@ npm run build && npm run start
 backend를 먼저 기동해 Flyway로 `alerts`/`alert_acknowledgements` 테이블을 만든 뒤 실행할 것 —
 이 서비스는 `synchronize: false`로 매핑만 하고 스키마를 직접 만들지 않는다. 자세한 REST/WebSocket
 계약은 `notification-server/README.md` 참조.
+
+## admin-web 로컬 실행
+
+```bash
+cd admin-web
+npm install
+npm run dev
+```
+
+`http://localhost:5173`에서 접속. dev server가 `/api` 요청을 backend(`VITE_BACKEND_URL`, 기본
+`http://localhost:8080`)로 프록시하므로 backend를 먼저 기동해야 한다. 화면 구성과 설계 원칙은
+`admin-web/README.md` 참조.
 
 ## 전체 스택 실행
 

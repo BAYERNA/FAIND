@@ -1,9 +1,13 @@
 package com.faind.domain.incident.service;
 
+import com.faind.domain.auth.service.AccountService;
+import com.faind.domain.device.service.DeviceService;
 import com.faind.domain.incident.dto.AssignmentRequest;
 import com.faind.domain.incident.dto.AssignmentResponse;
+import com.faind.domain.incident.dto.DashboardSummaryResponse;
 import com.faind.domain.incident.dto.DroneDispatchResponse;
 import com.faind.domain.incident.dto.IncidentCreateRequest;
+import com.faind.domain.incident.dto.IncidentListItemResponse;
 import com.faind.domain.incident.dto.IncidentResponse;
 import com.faind.domain.incident.dto.MonitoringResponse;
 import com.faind.domain.incident.dto.PreAnalysisResponse;
@@ -30,6 +34,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +54,8 @@ public class IncidentService {
   private final DroneDispatchRepository droneDispatchRepository;
   private final IncidentNumberGenerator incidentNumberGenerator;
   private final ApplicationEventPublisher eventPublisher;
+  private final AccountService accountService;
+  private final DeviceService deviceService;
 
   public IncidentService(
       IncidentRepository incidentRepository,
@@ -56,7 +64,9 @@ public class IncidentService {
       ResponderStatusLogRepository responderStatusLogRepository,
       DroneDispatchRepository droneDispatchRepository,
       IncidentNumberGenerator incidentNumberGenerator,
-      ApplicationEventPublisher eventPublisher) {
+      ApplicationEventPublisher eventPublisher,
+      AccountService accountService,
+      DeviceService deviceService) {
     this.incidentRepository = incidentRepository;
     this.assignmentRepository = assignmentRepository;
     this.preAnalysisResultRepository = preAnalysisResultRepository;
@@ -64,6 +74,8 @@ public class IncidentService {
     this.droneDispatchRepository = droneDispatchRepository;
     this.incidentNumberGenerator = incidentNumberGenerator;
     this.eventPublisher = eventPublisher;
+    this.accountService = accountService;
+    this.deviceService = deviceService;
   }
 
   @Transactional
@@ -170,6 +182,23 @@ public class IncidentService {
     incident.close();
     eventPublisher.publishEvent(new IncidentClosedEvent(incidentId, responderIds));
     return IncidentResponse.from(incident);
+  }
+
+  // ADM-001 관리자 홈 (FR-09) 통계 카드. device/auth 패키지 접근은 각 서비스 인터페이스를 거친다.
+  public DashboardSummaryResponse getDashboardSummary() {
+    LocalDateTime startOfToday = LocalDateTime.now().toLocalDate().atStartOfDay();
+    long todayDispatchCount = incidentRepository.countByReportedAtAfter(startOfToday);
+    long inProgressCount = incidentRepository.countByStatus(com.faind.domain.incident.entity.IncidentStatus.IN_PROGRESS)
+        + incidentRepository.countByStatus(com.faind.domain.incident.entity.IncidentStatus.DISPATCHED);
+    long onDutyResponderCount = accountService.countActiveResponders();
+    long deviceAnomalyCount = deviceService.countAnomalies();
+    return new DashboardSummaryResponse(todayDispatchCount, inProgressCount, onDutyResponderCount, deviceAnomalyCount);
+  }
+
+  // ADM-001 "최근 출동 목록"
+  public Page<IncidentListItemResponse> listRecent(Pageable pageable) {
+    return incidentRepository.findAllByOrderByReportedAtDesc(pageable)
+        .map(incident -> IncidentListItemResponse.from(incident, assignmentRepository.countByIncidentId(incident.getIncidentId())));
   }
 
   // statistics 패키지가 FR-13(평균 판정 시간) 계산에 필요한 reported_at만 배치 조회할 때 사용.

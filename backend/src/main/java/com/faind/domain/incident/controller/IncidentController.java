@@ -2,7 +2,9 @@ package com.faind.domain.incident.controller;
 
 import com.faind.domain.incident.dto.AssignmentRequest;
 import com.faind.domain.incident.dto.AssignmentResponse;
+import com.faind.domain.incident.dto.DashboardSummaryResponse;
 import com.faind.domain.incident.dto.IncidentCreateRequest;
+import com.faind.domain.incident.dto.IncidentListItemResponse;
 import com.faind.domain.incident.dto.IncidentResponse;
 import com.faind.domain.incident.dto.MonitoringResponse;
 import com.faind.domain.incident.dto.PreAnalysisResponse;
@@ -12,7 +14,10 @@ import com.faind.domain.incident.service.DroneDispatchService;
 import com.faind.domain.incident.service.IncidentService;
 import jakarta.validation.Valid;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -38,6 +43,20 @@ public class IncidentController {
   @PostMapping
   public ResponseEntity<IncidentResponse> create(@Valid @RequestBody IncidentCreateRequest request) {
     return ResponseEntity.ok(incidentService.create(request));
+  }
+
+  // ADM-001 관리자 홈 통계 카드 (FR-09)
+  @GetMapping("/dashboard-summary")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<DashboardSummaryResponse> getDashboardSummary() {
+    return ResponseEntity.ok(incidentService.getDashboardSummary());
+  }
+
+  // ADM-001 "최근 출동 목록"
+  @GetMapping
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<Page<IncidentListItemResponse>> listRecent(Pageable pageable) {
+    return ResponseEntity.ok(incidentService.listRecent(pageable));
   }
 
   @GetMapping("/{incidentId}")
