@@ -58,6 +58,26 @@ export function StatisticsPage() {
             </div>
           </div>
 
+          <div className="wf" style={{ marginBottom: 14, borderColor: 'var(--color-alert)' }}>
+            <div className="wf-header" style={{ background: 'var(--color-alert-fill)', color: 'var(--color-alert)', borderColor: 'var(--color-alert)' }}>
+              <span>🔥 CCTV 자동 화재감지 (FR-24)</span>
+            </div>
+            <div className="wf-body" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              <div className="wf-box">
+                <span className="label">감지 건수</span>
+                {data.cctvDetectionCount}건
+              </div>
+              <div className="wf-box">
+                <span className="label">관제실 수동 등록 비율 (ADM-010)</span>
+                {data.manualDetectionRatioPercent != null ? `${data.manualDetectionRatioPercent}%` : '감지 이력 없음'}
+              </div>
+              <div className="wf-box">
+                <span className="label">평균 위험도 점수</span>
+                {data.averageCctvDangerScore != null ? `${data.averageCctvDangerScore}점` : '감지 이력 없음'}
+              </div>
+            </div>
+          </div>
+
           <div className="form-grid" style={{ marginBottom: 14 }}>
             <BarChart label="월별 AI 판단 빈도" data={data.monthlyJudgmentCounts} />
             <BarChart

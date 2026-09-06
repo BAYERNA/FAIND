@@ -109,6 +109,11 @@ export interface StatisticsSummary {
   monthlyJudgmentCounts: LabeledCount[]
   judgmentTypeFrequency: LabeledCount[]
   recentJudgments: RecentJudgmentItem[]
+  // Phase 6 FR-24 CCTV 자동 화재감지 지표. cctvDetectionCount가 0이면 아직 감지 이력이 없다는
+  // 뜻이라 나머지 둘은 null(정보 없음) — "0"으로 보여주면 "평균적으로 안전했다"는 거짓 신호가 된다.
+  cctvDetectionCount: number
+  manualDetectionRatioPercent: number | null
+  averageCctvDangerScore: number | null
 }
 
 // ADM-010 전체 CCTV 상시 감시(Phase 4) 전용 — commander-tablet CMD-002와 동일한 계약.

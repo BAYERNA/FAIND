@@ -1,16 +1,22 @@
-import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
+import { postAiRiskWarning } from '../api/alerts'
 import { buildLiveStreamUrl, getCameras, getLiveDanger } from '../api/devices'
 import { DANGER_CLASS, DANGER_LABEL, DANGER_POLL_INTERVAL_MS, SPREAD_LABEL } from '../dangerDisplay'
 import type { CameraResponse } from '../types'
 
 // 카메라 한 대의 영상 + 위험도 배지. 위험도는 영상 위에 겹쳐 그리지 않는다 — ai-server의
 // /streams/mjpeg(영상)와 /streams/danger(판단)가 애초에 분리된 채널이라 UI도 그 경계를 유지한다.
+// Phase 6: CRITICAL로 새로 올라간 순간(이미 CRITICAL이던 상태에서 폴링될 때마다 X) 딱 한 번
+// FR-06 위험경고를 자동 발송한다 — CRITICAL 구간이 끝나(SAFE/WARNING/DANGER로 내려가) 다음
+// CRITICAL 구간이 다시 시작되면 재발송된다.
 function LiveCameraTile({
+  incidentId,
   camera,
   failed,
   onError,
 }: {
+  incidentId: string
   camera: CameraResponse
   failed: boolean
   onError: () => void
@@ -23,6 +29,22 @@ function LiveCameraTile({
     retry: false,
   })
   const danger = dangerQuery.data
+
+  const alertMutation = useMutation({ mutationFn: (message: string) => postAiRiskWarning(incidentId, message) })
+  // 이전 폴링의 등급을 ref로 들고 있다가 "방금 CRITICAL로 새로 올라간 순간"만 걸러낸다 — 렌더링
+  // 트리거용 state가 아니라서 setState-in-effect 문제 없이 exhaustive-deps를 그대로 만족시킨다.
+  const previousLevelRef = useRef<string | undefined>(undefined)
+
+  useEffect(() => {
+    const level = danger?.dangerLevel
+    const wasCritical = previousLevelRef.current === 'CRITICAL'
+    previousLevelRef.current = level
+    if (danger && level === 'CRITICAL' && !wasCritical) {
+      alertMutation.mutate(
+        `${camera.serialNo} 카메라 위험도 심각(CRITICAL, 점수 ${Math.round(danger.dangerScore)}) — AI 자동 감지, 즉시 확인이 필요합니다.`,
+      )
+    }
+  }, [danger, camera.serialNo, alertMutation])
 
   return (
     <div>
@@ -40,7 +62,7 @@ function LiveCameraTile({
         />
       )}
       {!failed && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 12, flexWrap: 'wrap' }}>
           {danger ? (
             <>
               <span className={`tag ${DANGER_CLASS[danger.dangerLevel] ?? ''}`}>
@@ -54,6 +76,9 @@ function LiveCameraTile({
               )}
               {danger.isFlickerVerified === false && (
                 <span style={{ color: 'var(--color-ink-soft)' }}>오탐 의심(깜빡임 없음)</span>
+              )}
+              {danger.dangerLevel === 'CRITICAL' && alertMutation.isSuccess && (
+                <span style={{ color: 'var(--color-alert)' }}>⚠ 위험경고 자동발송됨</span>
               )}
             </>
           ) : dangerQuery.isError ? (
@@ -70,8 +95,11 @@ function LiveCameraTile({
 // CMD-002 라이브 카메라 뷰 (FR-24/26). 지휘관이 등록된 CCTV 중 보고 싶은 카메라를 직접
 // 골라서 본다 — 출동과 카메라를 시스템이 자동으로 연결해주는 기능은 아니다(DB에 그 연결 정보가
 // 없다). 영상은 순수 중계이고, 위험도 배지는 지금 보고 있는 그 카메라의 스냅샷을 주기적으로
-// 다시 읽어와 옆에만 표시한다(영상 위에 겹쳐 그리지 않는다).
-export function LiveCameraPanel() {
+// 다시 읽어와 옆에만 표시한다(영상 위에 겹쳐 그리지 않는다). Phase 6: incidentId는 CRITICAL
+// 감지 시 FR-06 위험경고를 어느 출동 알림 피드로 보낼지 정하는 데만 쓰인다 — "이 카메라가 이
+// 출동 소속"이라는 걸 시스템이 판단해서가 아니라, 지휘관이 지금 이 출동 화면에서 이 카메라를
+// 보고 있다는 사실 자체가 그 연결의 근거다.
+export function LiveCameraPanel({ incidentId }: { incidentId: string }) {
   const [expanded, setExpanded] = useState(false)
   const [watchingIds, setWatchingIds] = useState<string[]>([])
   const [failedIds, setFailedIds] = useState<string[]>([])
@@ -127,6 +155,7 @@ export function LiveCameraPanel() {
             {watching.map((camera) => (
               <LiveCameraTile
                 key={camera.deviceId}
+                incidentId={incidentId}
                 camera={camera}
                 failed={failedIds.includes(camera.deviceId)}
                 onError={() => setFailedIds((prev) => (prev.includes(camera.deviceId) ? prev : [...prev, camera.deviceId]))}

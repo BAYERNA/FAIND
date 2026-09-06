@@ -18,6 +18,8 @@ export function rejectIncident(incidentId: string): Promise<IncidentResponse> {
 export interface ManualDetectionInput {
   cameraDeviceId: string
   confidenceScore: number
+  // Phase 6 ADM-009 통계용 — 등록 당시 실제 관측된 danger_score를 그대로 보낸다(꾸며내지 않음).
+  dangerScore?: number
   summary: string
   addressHint?: string
 }

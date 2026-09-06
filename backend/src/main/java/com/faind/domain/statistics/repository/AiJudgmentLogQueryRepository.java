@@ -15,7 +15,15 @@ public interface AiJudgmentLogQueryRepository extends Repository<AiJudgmentLog, 
 
   long countByJudgmentType(String judgmentType);
 
+  // Phase 6 ADM-009: CCTV_DETECTION 중 "MANUAL"(ADM-010 관제실 수동 등록) 비율 계산용 분자.
+  long countByJudgmentTypeAndDetectionSource(String judgmentType, String detectionSource);
+
   long count();
+
+  // Phase 6 ADM-009: danger_score가 채워진(=CCTV_DETECTION) 로그의 평균 위험도. 값이 하나도
+  // 없으면 null — "0"으로 보여주면 "평균적으로 안전했다"는 잘못된 신호가 되므로 그대로 null을 돌려준다.
+  @Query("select avg(l.dangerScore) from AiJudgmentLog l where l.judgmentType = :judgmentType and l.dangerScore is not null")
+  BigDecimal averageDangerScore(String judgmentType);
 
   List<AiJudgmentLog> findByCreatedAtAfterOrderByCreatedAtAsc(LocalDateTime after);
 

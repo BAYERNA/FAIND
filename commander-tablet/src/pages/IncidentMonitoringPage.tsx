@@ -149,7 +149,7 @@ export function IncidentMonitoringPage() {
 
           <div className="monitoring-layout">
             <div>
-              <LiveCameraPanel />
+              <LiveCameraPanel incidentId={incidentId} />
 
               <div className="wf" style={{ marginBottom: 14 }}>
                 <div className="wf-header">

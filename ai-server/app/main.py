@@ -56,6 +56,7 @@ async def _poll_camera(device_id: str, stream_url: str) -> None:
             camera_device_id=device_id,
             confidence_score=confidence * 100,
             summary=f"CCTV 자동 폴링 감지 (label={result.get('label')}, danger={danger_level})",
+            danger_score=result.get("danger_score"),
         )
     except BackendClientError:
         logger.error("CCTV 폴링 감지 결과를 backend에 보고하지 못했습니다 (device=%s)", device_id)

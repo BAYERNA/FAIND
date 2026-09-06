@@ -42,12 +42,18 @@ class FaindBackendClient:
         confidence_score: float,
         summary: str,
         address_hint: Optional[str] = None,
+        danger_score: Optional[float] = None,
     ) -> UUID:
-        """FR-24: CCTV 화재 의심 감지를 Java로 보고하고, 생성된 incident_id를 받는다."""
+        """FR-24: CCTV 화재 의심 감지를 Java로 보고하고, 생성된 incident_id를 받는다.
+
+        danger_score: Phase 6 ADM-009 통계용 — YoloService가 산출한 0~100 위험도 점수 원본.
+        판단 보류(값을 못 구한 경우)면 None으로 보내 backend가 "정보 없음"으로 남기게 한다.
+        """
         payload = {
             "cameraDeviceId": str(camera_device_id),
             "addressHint": address_hint,
             "confidenceScore": confidence_score,
+            "dangerScore": danger_score,
             "summary": summary,
         }
         async with httpx.AsyncClient(timeout=self._timeout) as client:

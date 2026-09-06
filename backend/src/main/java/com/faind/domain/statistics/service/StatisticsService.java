@@ -61,6 +61,13 @@ public class StatisticsService {
     GoldenTimeStatsResponse goldenTime = GoldenTimeStatsResponse.of(
         existingAverageDispatchSeconds, droneAvgSeconds.isPresent() ? droneAvgSeconds.getAsDouble() : null);
 
+    long cctvDetectionCount = aiJudgmentLogQueryRepository.countByJudgmentType("CCTV_DETECTION");
+    long manualCctvDetectionCount = aiJudgmentLogQueryRepository.countByJudgmentTypeAndDetectionSource("CCTV_DETECTION", "MANUAL");
+    Double manualDetectionRatioPercent =
+        cctvDetectionCount == 0 ? null : round1(manualCctvDetectionCount * 100.0 / cctvDetectionCount);
+    BigDecimal avgDangerScore = aiJudgmentLogQueryRepository.averageDangerScore("CCTV_DETECTION");
+    Double averageCctvDangerScore = avgDangerScore == null ? null : round1(avgDangerScore.doubleValue());
+
     return new StatisticsSummaryResponse(
         totalJudgments,
         round1(sopMatchAccuracyPercent),
@@ -69,7 +76,10 @@ public class StatisticsService {
         goldenTime,
         monthlyJudgmentCounts(),
         judgmentTypeFrequency(),
-        recentJudgments());
+        recentJudgments(),
+        cctvDetectionCount,
+        manualDetectionRatioPercent,
+        averageCctvDangerScore);
   }
 
   private double averagePreAnalysisSeconds() {

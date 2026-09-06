@@ -37,6 +37,16 @@ public class AiJudgmentLog {
   @Column(name = "confidence_score", precision = 5, scale = 2)
   private BigDecimal confidenceScore;
 
+  // FR-24 CCTV 자동 화재감지 전용(Phase 6 ADM-009 통계용) — YoloService가 산출한 0~100 위험도
+  // 점수. CCTV_DETECTION이 아닌 다른 judgmentType은 이 값을 채우지 않는다(정보 없음=NULL).
+  @Column(name = "danger_score", precision = 5, scale = 2)
+  private BigDecimal dangerScore;
+
+  // "AUTO"(ai-server CCTV 폴링) | "MANUAL"(ADM-010 관제실 수동 등록). 클라이언트가 보낸 값이
+  // 아니라 어느 API 경로로 들어왔는지로 서버가 결정한다 — 통계가 자기신고에 의존하지 않도록.
+  @Column(name = "detection_source", length = 10)
+  private String detectionSource;
+
   @Column
   private String summary;
 
@@ -48,11 +58,19 @@ public class AiJudgmentLog {
   public AiJudgmentLog(
       String judgmentType, UUID relatedIncidentId, UUID relatedReportId, UUID sourceDeviceId,
       BigDecimal confidenceScore, String summary) {
+    this(judgmentType, relatedIncidentId, relatedReportId, sourceDeviceId, confidenceScore, null, null, summary);
+  }
+
+  public AiJudgmentLog(
+      String judgmentType, UUID relatedIncidentId, UUID relatedReportId, UUID sourceDeviceId,
+      BigDecimal confidenceScore, BigDecimal dangerScore, String detectionSource, String summary) {
     this.judgmentType = judgmentType;
     this.relatedIncidentId = relatedIncidentId;
     this.relatedReportId = relatedReportId;
     this.sourceDeviceId = sourceDeviceId;
     this.confidenceScore = confidenceScore;
+    this.dangerScore = dangerScore;
+    this.detectionSource = detectionSource;
     this.summary = summary;
     this.createdAt = LocalDateTime.now();
   }
@@ -83,6 +101,14 @@ public class AiJudgmentLog {
 
   public BigDecimal getConfidenceScore() {
     return confidenceScore;
+  }
+
+  public BigDecimal getDangerScore() {
+    return dangerScore;
+  }
+
+  public String getDetectionSource() {
+    return detectionSource;
   }
 
   public String getSummary() {

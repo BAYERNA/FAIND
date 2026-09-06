@@ -78,6 +78,7 @@ async def analyze(
                     f"danger={kwargs['danger_level']})"
                 ),
                 address_hint=request.address_hint,
+                danger_score=kwargs["danger_score"],
             )
             return FireDetectionResult(callback_sent=True, incident_id=incident_id, **kwargs)
         except BackendClientError as e:

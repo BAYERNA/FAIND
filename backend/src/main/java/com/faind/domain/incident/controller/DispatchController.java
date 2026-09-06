@@ -38,7 +38,7 @@ public class DispatchController {
   // 검증한다 (미설정 시 로컬 데모 편의상 검증 생략 — notification-server의 InternalWebhookGuard와 동일).
   @PostMapping("/cctv-detections")
   public ResponseEntity<UUID> receiveCctvDetection(@Valid @RequestBody CctvDetectionRequest request) {
-    return ResponseEntity.ok(cctvDetectionService.receiveDetection(request));
+    return ResponseEntity.ok(cctvDetectionService.receiveDetection(request, "AUTO"));
   }
 
   // ADM-010(Phase 5) 관제실이 상시 감시 화면에서 위험 카메라를 발견해 수동으로 등록하는 경로.
@@ -49,7 +49,7 @@ public class DispatchController {
   @PostMapping("/manual-detection")
   @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<UUID> receiveManualDetection(@Valid @RequestBody CctvDetectionRequest request) {
-    return ResponseEntity.ok(cctvDetectionService.receiveDetection(request));
+    return ResponseEntity.ok(cctvDetectionService.receiveDetection(request, "MANUAL"));
   }
 
   // ADM-001 "AI 의심감지 대기열" — admin-web 전용 화면, confirm/reject와 동일하게 ADMIN만 조회.

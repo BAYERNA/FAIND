@@ -18,6 +18,12 @@ export function postRiskWarning(
   return notifyRequest<AlertResponse>(`/incidents/${incidentId}/alerts/risk-warning`, { method: 'POST', body: payload })
 }
 
+// Phase 6: 지휘관이 지켜보는 카메라의 위험도가 CRITICAL로 올라갔을 때 LiveCameraPanel이 대신
+// 보고한다. author_id 없이 sourceType='AI'로 남아 사람이 판단한 게 아니라는 걸 그대로 드러낸다.
+export function postAiRiskWarning(incidentId: string, message: string): Promise<AlertResponse> {
+  return notifyRequest<AlertResponse>(`/incidents/${incidentId}/alerts/ai-risk-warning`, { method: 'POST', body: { message } })
+}
+
 // FR-22 "확인했어요"
 export function acknowledgeAlert(alertId: string): Promise<void> {
   return notifyRequest<void>(`/alerts/${alertId}/acknowledgements`, { method: 'POST' })

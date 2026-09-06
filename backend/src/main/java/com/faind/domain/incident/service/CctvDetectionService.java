@@ -38,8 +38,10 @@ public class CctvDetectionService {
     this.deviceService = deviceService;
   }
 
+  // detectionSource: "AUTO"(ai-server CCTV 폴링, /cctv-detections) | "MANUAL"(ADM-010 관제실
+  // 수동 등록, /manual-detection). 호출한 컨트롤러가 정하는 값이라 요청 바디로 위조할 수 없다.
   @Transactional
-  public UUID receiveDetection(CctvDetectionRequest request) {
+  public UUID receiveDetection(CctvDetectionRequest request, String detectionSource) {
     DeviceResponse camera = deviceService.get(request.cameraDeviceId());
     LocalDateTime detectedAt = request.detectedAt() != null ? request.detectedAt() : LocalDateTime.now();
 
@@ -53,7 +55,7 @@ public class CctvDetectionService {
 
     AiJudgmentLog log = new AiJudgmentLog(
         "CCTV_DETECTION", incident.getIncidentId(), null, request.cameraDeviceId(), request.confidenceScore(),
-        request.summary());
+        request.dangerScore(), detectionSource, request.summary());
     aiJudgmentLogRepository.save(log);
 
     return incident.getIncidentId();
