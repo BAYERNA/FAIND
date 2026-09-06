@@ -5,8 +5,10 @@ name: CI
 # 로컬에서만 돌았다. 6개 런타임을 각자 독립된 job으로 검증해, 어느 하나가 깨져도 나머지는
 # 계속 결과를 볼 수 있게 한다.
 on:
+  # PR이 열려 있는 브랜치에 push하면 push/pull_request 두 이벤트가 동시에 발생해 같은 커밋을
+  # 두 번 돌리게 된다 — push는 main 직접 반영(머지 후)만 잡고, 브랜치 작업은 pull_request로 커버.
   push:
-    branches: ['**']
+    branches: [main]
   pull_request:
 
 concurrency:
