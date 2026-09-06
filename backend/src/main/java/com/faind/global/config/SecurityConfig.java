@@ -1,5 +1,6 @@
 package com.faind.global.config;
 
+import com.faind.global.security.InternalServiceAuthFilter;
 import com.faind.global.security.JwtAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,10 +29,18 @@ public class SecurityConfig {
     "/v3/api-docs/**"
   };
 
-  private final JwtAuthFilter jwtAuthFilter;
+  // ai-server 콜백 전용 — 로그인 사용자 JWT 대신 InternalServiceAuthFilter가 별도 토큰으로 검증한다.
+  private static final String[] INTERNAL_SERVICE_ENDPOINTS = {
+    "/api/v1/incidents/dispatch/cctv-detections",
+    "/api/v1/incidents/drone-dispatches/*/recon-result"
+  };
 
-  public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+  private final JwtAuthFilter jwtAuthFilter;
+  private final InternalServiceAuthFilter internalServiceAuthFilter;
+
+  public SecurityConfig(JwtAuthFilter jwtAuthFilter, InternalServiceAuthFilter internalServiceAuthFilter) {
     this.jwtAuthFilter = jwtAuthFilter;
+    this.internalServiceAuthFilter = internalServiceAuthFilter;
   }
 
   @Bean
@@ -40,7 +49,10 @@ public class SecurityConfig {
         .cors(Customizer.withDefaults())
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
-            auth -> auth.requestMatchers(PUBLIC_ENDPOINTS).permitAll().anyRequest().authenticated())
+            auth -> auth.requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                .requestMatchers(INTERNAL_SERVICE_ENDPOINTS).permitAll()
+                .anyRequest().authenticated())
+        .addFilterBefore(internalServiceAuthFilter, UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
     return http.build();
   }

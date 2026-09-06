@@ -27,6 +27,11 @@ uvicorn app.main:app --reload --port 8001
 
 JSON은 모두 camelCase로 주고받는다 (`app/core/camel_model.py` — Java Jackson 기본 직렬화와 맞춤).
 
+`ai-server → backend` 두 콜백은 로그인 사용자 JWT가 아니라 `FAIND_BACKEND_SERVICE_TOKEN` 공유 토큰으로
+인증한다. backend의 `faind.security.internal-service-token`(env: `INTERNAL_SERVICE_TOKEN`)과 반드시
+같은 값을 써야 한다 — 비워두면(둘 다 기본값) backend의 `InternalServiceAuthFilter`가 로컬 데모 편의상
+검증을 생략한다.
+
 ## LLM / 화재감지 모델이 없을 때
 
 - `FAIND_LLM_PROVIDER=none`(기본값)이면 사전분석·SOP대조는 휴리스틱(키워드 매칭, 결정론적 추정치)으로

@@ -18,10 +18,6 @@ export function getActiveIncidents(): Promise<IncidentResponse[]> {
   return apiRequest<IncidentResponse[]>('/api/v1/incidents/active')
 }
 
-export function getIncident(incidentId: string): Promise<IncidentResponse> {
-  return apiRequest<IncidentResponse>(`/api/v1/incidents/${incidentId}`)
-}
-
 // CMD-001: 사전분석 결과 + NFR-03 검증용 소요시간
 export function getPreAnalysis(incidentId: string): Promise<PreAnalysisResponse> {
   return apiRequest<PreAnalysisResponse>(`/api/v1/incidents/${incidentId}/pre-analysis`)

@@ -45,7 +45,10 @@ public class IncidentController {
     this.droneDispatchService = droneDispatchService;
   }
 
+  // FR-01 유선 신고 접수(관제실) — 사람이 직접 등록하는 즉시 DISPATCHED 경로이므로
+  // CCTV 경로(ADM-001 confirm)와 동일하게 ADMIN 전용으로 제한한다.
   @PostMapping
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<IncidentResponse> create(@Valid @RequestBody IncidentCreateRequest request) {
     return ResponseEntity.ok(incidentService.create(request));
   }
@@ -137,6 +140,7 @@ public class IncidentController {
   }
 
   // FR-26: 드론 도착 후 정찰 결과 콜백 (ai-server → Java 모놀리식)
+  // /cctv-detections와 동일하게 InternalServiceAuthFilter가 서비스 토큰으로 검증한다.
   @PostMapping("/drone-dispatches/{dispatchId}/recon-result")
   public ResponseEntity<Void> recordDroneReconResult(
       @PathVariable UUID dispatchId, @Valid @RequestBody DroneReconRequest request) {

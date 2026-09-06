@@ -58,6 +58,11 @@ FR-20(후발대 경로·ETA)은 DB설계서에 소방서·차량 위치 테이�
 (위도/경도/표시명) 고정 좌표를 출발지로 근사한다 — 실제 관할 소방서 좌표로 바꾸려면 이 값만
 `application.yml`에서 덮어쓰면 된다.
 
+ai-server가 콜백하는 `/incidents/dispatch/cctv-detections`·`/incidents/drone-dispatches/{id}/recon-result`
+(FR-24/FR-26)는 로그인 사용자 JWT 대신 `faind.security.internal-service-token`(env:
+`INTERNAL_SERVICE_TOKEN`) 공유 토큰으로 검증한다 — ai-server의 `FAIND_BACKEND_SERVICE_TOKEN`과 같은 값을
+넣어야 하며, 둘 다 비워두면(로컬 데모 기본값) 검증을 생략한다.
+
 ## notification-server 로컬 실행
 
 ```bash
