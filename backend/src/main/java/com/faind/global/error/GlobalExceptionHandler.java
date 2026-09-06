@@ -42,6 +42,15 @@ public class GlobalExceptionHandler {
         .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, "데이터 제약조건을 위반했습니다."));
   }
 
+  // Device.remap/relocate/updateStreamUrl 등 도메인 상태 위반(IllegalStateException)을
+  // 500(INTERNAL_ERROR)이 아니라 400으로 응답한다 — 클라이언트 입력(기기 유형 불일치 등)이
+  // 원인이므로 서버 오류로 취급하지 않는다.
+  @ExceptionHandler(IllegalStateException.class)
+  public ResponseEntity<ErrorResponse> handleIllegalStateException(IllegalStateException e) {
+    return ResponseEntity.status(ErrorCode.INVALID_INPUT.getStatus())
+        .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, e.getMessage()));
+  }
+
   @ExceptionHandler(Exception.class)
   public ResponseEntity<ErrorResponse> handleUnexpectedException(Exception e) {
     log.error("Unexpected error", e);

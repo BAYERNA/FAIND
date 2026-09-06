@@ -126,8 +126,6 @@ public class IncidentService {
       // MVP는 "최초 배정 = 최선임"으로 단순화한다 (계급 데이터가 없으면 배정 순서로 결정).
       assignment.markAsFirstWave();
       assignment.setCommsLead(true);
-    } else {
-      assignment.markAsFirstWave();
     }
     assignmentRepository.save(assignment);
     return AssignmentResponse.from(assignment);
@@ -143,6 +141,12 @@ public class IncidentService {
     return AssignmentResponse.from(next);
   }
 
+  // GET /{incidentId}, /{incidentId}/monitoring 컨트롤러의 RESPONDER 권한 경계용 — 배정되지 않은
+  // 출동의 모니터링(동료 대원 생체·환경 데이터 포함)을 아무 대원이나 조회하지 못하게 한다.
+  public boolean isResponderAssigned(UUID incidentId, UUID userId) {
+    return assignmentRepository.findByIncidentIdAndUserId(incidentId, userId).isPresent();
+  }
+
   public List<UUID> getAssignedResponderIds(UUID incidentId) {
     return assignmentRepository.findByIncidentIdOrderByAssignedAtAsc(incidentId).stream()
         .map(IncidentAssignment::getUserId)
@@ -154,7 +158,13 @@ public class IncidentService {
     if (!request.userId().equals(currentUserId)) {
       throw new BusinessException(ErrorCode.FORBIDDEN, "본인 명의로만 상태를 보고할 수 있습니다.");
     }
-    findIncident(incidentId);
+    Incident incident = findIncident(incidentId);
+    // 현장 대원의 상태 보고가 처음 들어온 시점 = 실제로 현장 활동이 시작됐다고 볼 수 있는 가장
+    // 이른 신호. DISPATCHED("출동중")에서 IN_PROGRESS("진행중")로 이때 전환한다 — 이 전환을 트리거할
+    // 다른 이벤트(예: 도착 확인)가 아직 없으므로, 이미 IN_PROGRESS면 조용히 건너뛴다.
+    if (incident.getStatus() == IncidentStatus.DISPATCHED) {
+      incident.markInProgress();
+    }
     ResponderStatusLog log = new ResponderStatusLog(
         incidentId, request.userId(), LocalDateTime.now(), request.biometricData(), request.environmentData(),
         request.riskLevel(), request.connectionStatus());

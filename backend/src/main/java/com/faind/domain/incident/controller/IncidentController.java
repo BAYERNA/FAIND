@@ -14,6 +14,8 @@ import com.faind.domain.incident.dto.ResponderStatusRequest;
 import com.faind.domain.incident.dto.RouteEstimateResponse;
 import com.faind.domain.incident.service.DroneDispatchService;
 import com.faind.domain.incident.service.IncidentService;
+import com.faind.global.error.BusinessException;
+import com.faind.global.error.ErrorCode;
 import com.faind.global.security.AuthenticatedUser;
 import com.faind.global.security.CurrentUser;
 import jakarta.validation.Valid;
@@ -81,25 +83,32 @@ public class IncidentController {
     return ResponseEntity.ok(incidentService.listMyActiveIncidents(currentUser.userId()));
   }
 
+  // USR-001/002/003도 자기 배정 출동을 조회하려 이 엔드포인트를 쓰므로 역할 자체를 막을 수는 없다 —
+  // 대신 RESPONDER는 본인이 배정된 출동만 보도록 서비스에서 소유권을 검증한다(동료 생체데이터 등
+  // CMD-002 모니터링 데이터가 배정 무관하게 아무 대원에게나 노출되지 않도록).
   @GetMapping("/{incidentId}")
-  public ResponseEntity<IncidentResponse> get(@PathVariable UUID incidentId) {
+  public ResponseEntity<IncidentResponse> get(@PathVariable UUID incidentId, @CurrentUser AuthenticatedUser currentUser) {
+    requireIncidentAccess(incidentId, currentUser);
     return ResponseEntity.ok(incidentService.getIncident(incidentId));
   }
 
-  // CMD-001: 사전분석 결과 + NFR-03 검증용 소요시간
+  // CMD-001: 사전분석 결과 + NFR-03 검증용 소요시간. responder-app은 호출하지 않는 지휘관 전용 데이터.
   @GetMapping("/{incidentId}/pre-analysis")
+  @PreAuthorize("hasAnyRole('COMMANDER','ADMIN')")
   public ResponseEntity<PreAnalysisResponse> getPreAnalysis(@PathVariable UUID incidentId) {
     return ResponseEntity.ok(incidentService.getPreAnalysis(incidentId));
   }
 
-  // CMD-002 드론 정찰 카드(FR-26) 등에서 사용하는 AI 판단 이력
+  // CMD-002 드론 정찰 카드(FR-26) 등에서 사용하는 AI 판단 이력. 지휘관 전용.
   @GetMapping("/{incidentId}/ai-judgments")
+  @PreAuthorize("hasAnyRole('COMMANDER','ADMIN')")
   public ResponseEntity<List<AiJudgmentSummaryResponse>> getAiJudgments(@PathVariable UUID incidentId) {
     return ResponseEntity.ok(incidentService.getAiJudgments(incidentId));
   }
 
-  // FR-20 CMD-001/002: 후발대(소방차) 경로·ETA — 출동 확정 시 관할 소방서 고정 좌표 기준으로 1회 계산돼 캐시된 값
+  // FR-20 CMD-001/002: 후발대(소방차) 경로·ETA — 출동 확정 시 관할 소방서 고정 좌표 기준으로 1회 계산돼 캐시된 값. 지휘관 전용.
   @GetMapping("/{incidentId}/route-estimate")
+  @PreAuthorize("hasAnyRole('COMMANDER','ADMIN')")
   public ResponseEntity<RouteEstimateResponse> getGroundRouteEstimate(@PathVariable UUID incidentId) {
     return ResponseEntity.ok(incidentService.getGroundRouteEstimate(incidentId));
   }
@@ -129,9 +138,12 @@ public class IncidentController {
     return ResponseEntity.ok().build();
   }
 
-  // CMD-002 현장 모니터링 대시보드 전체 데이터
+  // CMD-002 현장 모니터링 대시보드 전체 데이터. USR-001도 자기 출동 화면에서 재사용하므로
+  // get()과 동일하게 RESPONDER는 배정된 출동인지 검증한다.
   @GetMapping("/{incidentId}/monitoring")
-  public ResponseEntity<MonitoringResponse> getMonitoring(@PathVariable UUID incidentId) {
+  public ResponseEntity<MonitoringResponse> getMonitoring(
+      @PathVariable UUID incidentId, @CurrentUser AuthenticatedUser currentUser) {
+    requireIncidentAccess(incidentId, currentUser);
     return ResponseEntity.ok(incidentService.getMonitoring(incidentId));
   }
 
@@ -149,5 +161,13 @@ public class IncidentController {
       @PathVariable UUID dispatchId, @Valid @RequestBody DroneReconRequest request) {
     droneDispatchService.recordReconResult(dispatchId, request.confidenceScore(), request.summary(), request.videoRef());
     return ResponseEntity.ok().build();
+  }
+
+  // COMMANDER/ADMIN은 배정 무관하게 어떤 출동이든 볼 수 있다(기존 /active 목록과 동일한 전제 —
+  // CCTV 출처는 commanderId가 없어 개인별 필터가 애초에 불가능하다). RESPONDER만 배정 여부를 검증한다.
+  private void requireIncidentAccess(UUID incidentId, AuthenticatedUser currentUser) {
+    if ("RESPONDER".equals(currentUser.role()) && !incidentService.isResponderAssigned(incidentId, currentUser.userId())) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "배정된 출동만 조회할 수 있습니다.");
+    }
   }
 }
