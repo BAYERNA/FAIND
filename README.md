@@ -118,5 +118,14 @@ npm run dev
 docker compose up --build
 ```
 
-postgres → redis → backend(Flyway 적용, healthcheck) → ai-server/notification-server 순으로
-의존성이 걸려 있다.
+postgres → redis → backend(Flyway 적용, healthcheck) → ai-server/notification-server → 3개
+프론트엔드 순으로 의존성이 걸려 있다. 프론트엔드는 각자 nginx로 정적 빌드를 서빙하며, dev
+server의 vite proxy와 동일한 규칙(`/api`→backend, `/notify`·`/socket.io`→notification-server,
+`/ai-stream`→ai-server)을 nginx.conf로 재현해 브라우저가 CORS 없이 접근한다.
+
+| 서비스 | 접속 주소 |
+|---|---|
+| admin-web | http://localhost:8081 |
+| commander-tablet | http://localhost:8082 |
+| responder-app | http://localhost:8083 |
+| backend Swagger | http://localhost:8080/swagger-ui.html |

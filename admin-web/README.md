@@ -13,6 +13,16 @@ npm run dev
 `vite.config.ts`의 dev proxy가 `/api` 요청을 `VITE_BACKEND_URL`(기본 `http://localhost:8080`)로
 전달한다. backend를 먼저 기동해 두어야 한다 (`../backend/README.md` 참조).
 
+## 자동화 테스트
+
+```bash
+npm run test
+```
+
+Vitest + React Testing Library. `api/client.ts`(NFR-02 성공/실패 구분, 토큰 첨부, query 직렬화)와
+`auth/AuthContext.tsx`(로그인 시 토큰·사용자 정보 영속화, 로그아웃/최초 비밀번호 변경 시 상태 갱신)를
+검증한다. 실제 backend 호출 없이 `fetch`를 목(mock)으로 대체한다.
+
 ## 화면 구성
 
 | 경로 | 화면 | 기능 |

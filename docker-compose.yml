@@ -1,5 +1,10 @@
-# FAIND 로컬 개발용 Docker Compose. 3개 런타임(backend/ai-server/notification-server) 모두 구현 완료.
+# FAIND 로컬 개발용 Docker Compose. 6개 런타임 전체를 한 번에 기동한다.
 # (기술스택 §2.9: 데모 규모는 Docker Compose로 충분, Kubernetes는 실서비스 확장 시점의 로드맵)
+#
+# 3개 프론트엔드(admin-web/commander-tablet/responder-app)는 각자 nginx.conf로 /api, /notify,
+# /socket.io, /ai-stream을 backend/notification-server/ai-server로 프록시한다 — dev server의
+# vite.config.ts 프록시 규칙을 프로덕션 빌드에서 그대로 재현한 것. 브라우저는 각 앱의 nginx
+# 오리진 하나만 보므로 CORS 설정이 필요 없다.
 
 services:
   postgres:
@@ -85,6 +90,40 @@ services:
       JWT_SECRET: faind-local-development-secret-key-change-in-production-0123456789
     ports:
       - "3001:3001"
+
+  admin-web:
+    build:
+      context: ./admin-web
+    container_name: faind-admin-web
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "8081:80"
+
+  commander-tablet:
+    build:
+      context: ./commander-tablet
+    container_name: faind-commander-tablet
+    depends_on:
+      backend:
+        condition: service_healthy
+      notification-server:
+        condition: service_started
+    ports:
+      - "8082:80"
+
+  responder-app:
+    build:
+      context: ./responder-app
+    container_name: faind-responder-app
+    depends_on:
+      backend:
+        condition: service_healthy
+      notification-server:
+        condition: service_started
+    ports:
+      - "8083:80"
 
 volumes:
   faind-postgres-data:

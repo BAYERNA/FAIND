@@ -19,6 +19,15 @@ npm run dev
 backend의 `faind.cors.allowed-origins`와 notification-server의 `CORS_ALLOWED_ORIGINS`에 이 포트가
 등록되어 있어야 브라우저에서 정상 동작한다 (둘 다 리포지토리 기본값에 이미 포함).
 
+## 자동화 테스트
+
+```bash
+npm run test
+```
+
+Vitest + React Testing Library. `api/client.ts`(NFR-02 성공/실패 구분)와 `auth/AuthContext.tsx`(로그인
+세션 영속화)를 검증한다. 실제 backend 호출 없이 `fetch`를 목(mock)으로 대체한다.
+
 ## 화면 구성
 
 | 경로 | 화면 | 기능 |

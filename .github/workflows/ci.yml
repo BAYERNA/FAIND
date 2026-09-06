@@ -84,6 +84,7 @@ jobs:
       - run: npm ci
       - run: npx tsc -b
       - run: npx oxlint
+      - run: npm run test
 
   commander-tablet:
     name: commander-tablet (React/TS)
@@ -101,6 +102,7 @@ jobs:
       - run: npm ci
       - run: npx tsc -b
       - run: npx oxlint
+      - run: npm run test
 
   responder-app:
     name: responder-app (React/TS)
@@ -118,3 +120,4 @@ jobs:
       - run: npm ci
       - run: npx tsc -b
       - run: npx oxlint
+      - run: npm run test
