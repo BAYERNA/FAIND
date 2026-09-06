@@ -14,3 +14,16 @@ export function confirmIncident(incidentId: string): Promise<IncidentResponse> {
 export function rejectIncident(incidentId: string): Promise<IncidentResponse> {
   return apiRequest<IncidentResponse>(`/api/v1/incidents/dispatch/${incidentId}/reject`, { method: 'PATCH' })
 }
+
+export interface ManualDetectionInput {
+  cameraDeviceId: string
+  confidenceScore: number
+  summary: string
+  addressHint?: string
+}
+
+// ADM-010(Phase 5): 상시 감시 화면에서 위험 카메라를 발견해 수동으로 "출동의심" 등록.
+// ai-server 자동 폴링과 결과는 동일(AI_SUSPECTED 생성) — 정식 출동 확정은 여전히 confirmIncident만.
+export function registerManualDetection(input: ManualDetectionInput): Promise<string> {
+  return apiRequest<string>('/api/v1/incidents/dispatch/manual-detection', { method: 'POST', body: input })
+}

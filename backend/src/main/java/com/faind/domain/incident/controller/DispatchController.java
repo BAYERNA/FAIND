@@ -41,6 +41,17 @@ public class DispatchController {
     return ResponseEntity.ok(cctvDetectionService.receiveDetection(request));
   }
 
+  // ADM-010(Phase 5) 관제실이 상시 감시 화면에서 위험 카메라를 발견해 수동으로 등록하는 경로.
+  // 결과(AI_SUSPECTED 생성)는 /cctv-detections와 동일하지만, 인증 방식이 다르다 — 이건 사람이
+  // 로그인한 세션(JWT)에서 호출하므로 InternalServiceAuthFilter가 아니라 일반 @PreAuthorize로
+  // 검증한다. internal-service-token이 설정된 배포 환경에서도 ADMIN 세션으로 문제없이 동작해야
+  // 하기 때문에 내부 서비스 전용 경로를 재사용하지 않고 별도 엔드포인트로 분리했다.
+  @PostMapping("/manual-detection")
+  @PreAuthorize("hasRole('ADMIN')")
+  public ResponseEntity<UUID> receiveManualDetection(@Valid @RequestBody CctvDetectionRequest request) {
+    return ResponseEntity.ok(cctvDetectionService.receiveDetection(request));
+  }
+
   // ADM-001 "AI 의심감지 대기열" — admin-web 전용 화면, confirm/reject와 동일하게 ADMIN만 조회.
   @GetMapping("/ai-suspected")
   @PreAuthorize("hasRole('ADMIN')")

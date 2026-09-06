@@ -1,24 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { buildLiveStreamUrl, getCameras, getLiveDanger } from '../api/devices'
+import { DANGER_CLASS, DANGER_LABEL, DANGER_POLL_INTERVAL_MS, SPREAD_LABEL } from '../dangerDisplay'
 import type { CameraResponse } from '../types'
-
-const DANGER_POLL_INTERVAL_MS = 5000
-
-const DANGER_LABEL: Record<string, string> = { SAFE: '안전', WARNING: '주의', DANGER: '위험', CRITICAL: '심각' }
-const DANGER_CLASS: Record<string, string> = {
-  SAFE: 'risk-normal',
-  WARNING: 'risk-caution',
-  DANGER: 'risk-danger',
-  CRITICAL: 'risk-critical',
-}
-
-const SPREAD_LABEL: Record<string, string> = {
-  UP: '위로 확산',
-  DOWN: '아래로 확산',
-  LEFT: '왼쪽으로 확산',
-  RIGHT: '오른쪽으로 확산',
-}
 
 // 카메라 한 대의 영상 + 위험도 배지. 위험도는 영상 위에 겹쳐 그리지 않는다 — ai-server의
 // /streams/mjpeg(영상)와 /streams/danger(판단)가 애초에 분리된 채널이라 UI도 그 경계를 유지한다.
