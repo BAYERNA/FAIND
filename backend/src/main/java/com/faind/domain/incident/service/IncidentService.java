@@ -150,7 +150,10 @@ public class IncidentService {
   }
 
   @Transactional
-  public void recordResponderStatus(UUID incidentId, ResponderStatusRequest request) {
+  public void recordResponderStatus(UUID incidentId, ResponderStatusRequest request, UUID currentUserId) {
+    if (!request.userId().equals(currentUserId)) {
+      throw new BusinessException(ErrorCode.FORBIDDEN, "본인 명의로만 상태를 보고할 수 있습니다.");
+    }
     findIncident(incidentId);
     ResponderStatusLog log = new ResponderStatusLog(
         incidentId, request.userId(), LocalDateTime.now(), request.biometricData(), request.environmentData(),

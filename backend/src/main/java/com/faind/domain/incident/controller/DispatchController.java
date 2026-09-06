@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -40,8 +41,9 @@ public class DispatchController {
     return ResponseEntity.ok(cctvDetectionService.receiveDetection(request));
   }
 
-  // ADM-001 "AI 의심감지 대기열"
+  // ADM-001 "AI 의심감지 대기열" — admin-web 전용 화면, confirm/reject와 동일하게 ADMIN만 조회.
   @GetMapping("/ai-suspected")
+  @PreAuthorize("hasRole('ADMIN')")
   public ResponseEntity<List<AiSuspectedQueueItemResponse>> getSuspectedQueue() {
     return ResponseEntity.ok(cctvDetectionService.getSuspectedQueue());
   }

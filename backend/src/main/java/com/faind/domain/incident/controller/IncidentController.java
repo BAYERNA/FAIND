@@ -119,10 +119,13 @@ public class IncidentController {
   }
 
   // FR-03/04/12: 대원 실시간 상태 적재 (웨어러블·앱에서 주기적으로 전송)
+  // 본인 명의로만 보고할 수 있도록 서비스 레벨에서 request.userId()와 currentUser를 대조한다.
   @PostMapping("/{incidentId}/responder-status")
+  @PreAuthorize("hasRole('RESPONDER')")
   public ResponseEntity<Void> recordResponderStatus(
-      @PathVariable UUID incidentId, @Valid @RequestBody ResponderStatusRequest request) {
-    incidentService.recordResponderStatus(incidentId, request);
+      @PathVariable UUID incidentId, @Valid @RequestBody ResponderStatusRequest request,
+      @CurrentUser AuthenticatedUser currentUser) {
+    incidentService.recordResponderStatus(incidentId, request, currentUser.userId());
     return ResponseEntity.ok().build();
   }
 
