@@ -14,6 +14,8 @@ import com.faind.domain.incident.dto.ResponderStatusRequest;
 import com.faind.domain.incident.dto.RouteEstimateResponse;
 import com.faind.domain.incident.service.DroneDispatchService;
 import com.faind.domain.incident.service.IncidentService;
+import com.faind.global.security.AuthenticatedUser;
+import com.faind.global.security.CurrentUser;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -67,6 +69,13 @@ public class IncidentController {
   @PreAuthorize("hasAnyRole('COMMANDER','ADMIN')")
   public ResponseEntity<List<IncidentResponse>> listActive() {
     return ResponseEntity.ok(incidentService.listActive());
+  }
+
+  // USR-001 대원 앱 진입 화면: 내가 배정된, 아직 종료되지 않은 출동
+  @GetMapping("/my-active")
+  @PreAuthorize("hasRole('RESPONDER')")
+  public ResponseEntity<List<IncidentResponse>> listMyActive(@CurrentUser AuthenticatedUser currentUser) {
+    return ResponseEntity.ok(incidentService.listMyActiveIncidents(currentUser.userId()));
   }
 
   @GetMapping("/{incidentId}")

@@ -20,6 +20,7 @@ AI가 화재를 감지하고 골든타임을 사수하는 지능형 소방 대�
 | `notification-server/` | Node.js + NestJS | 구현 완료 (FR-06, FR-18, FR-22, FR-23) |
 | `admin-web/` | React 19 + TypeScript + Vite | 구현 완료 (CMN-001/002, ADM-001/002/003/006/009) |
 | `commander-tablet/` | React 19 + TypeScript + Vite | 구현 완료 (CMN-001/002, CMD-001/002/003/006) |
+| `responder-app/` | React 19 + TypeScript + Vite | 구현 완료 (CMN-001/002, USR-001/002/003) |
 
 ## ai-server 로컬 실행
 
@@ -93,6 +94,18 @@ npm run dev
 `http://localhost:5174`에서 접속 (admin-web과 동시에 띄울 수 있도록 포트를 분리했다). dev server가
 `/api`는 backend로, `/notify`·`/socket.io`는 notification-server로 프록시하므로 둘 다 먼저 기동해야
 한다. 화면 구성과 설계 원칙은 `commander-tablet/README.md` 참조.
+
+## responder-app 로컬 실행
+
+```bash
+cd responder-app
+npm install
+npm run dev
+```
+
+`http://localhost:5175`에서 접속 (admin-web·commander-tablet과 동시에 띄울 수 있도록 포트를
+분리했다). commander-tablet과 같은 프록시 구성을 쓴다. 좁은 화면(모바일) 레이아웃이며, 화면 구성과
+설계 원칙은 `responder-app/README.md` 참조.
 
 ## 전체 스택 실행
 

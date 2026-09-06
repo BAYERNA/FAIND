@@ -220,6 +220,20 @@ public class IncidentService {
         .toList();
   }
 
+  // USR-001 대원 앱 진입 화면: 이 대원이 배정된, 아직 종료되지 않은 출동. 여러 건에 배정될 일은
+  // 드물지만(동시 출동), 실제로 있을 수 있으므로 배정 최신순으로 전부 반환한다.
+  public List<IncidentResponse> listMyActiveIncidents(UUID userId) {
+    List<UUID> incidentIds = assignmentRepository.findByUserIdOrderByAssignedAtDesc(userId).stream()
+        .map(IncidentAssignment::getIncidentId)
+        .distinct()
+        .toList();
+    return incidentRepository.findAllById(incidentIds).stream()
+        .filter(incident -> incident.getStatus() != IncidentStatus.CLOSED)
+        .sorted(Comparator.comparing(Incident::getReportedAt).reversed())
+        .map(IncidentResponse::from)
+        .toList();
+  }
+
   // CMD-002 드론 정찰 카드(FR-26) 등에서 해당 출동에 얽힌 AI 판단 이력을 시간순으로 보여줄 때 사용.
   public List<AiJudgmentSummaryResponse> getAiJudgments(UUID incidentId) {
     findIncident(incidentId); // 존재 검증
