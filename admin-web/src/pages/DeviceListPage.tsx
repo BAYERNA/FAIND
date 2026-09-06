@@ -4,7 +4,7 @@ import { AdminLayout } from '../components/AdminLayout'
 import { Banner } from '../components/Banner'
 import { ApiError } from '../api/client'
 import { listAccounts } from '../api/accounts'
-import { listDevices, registerDevice, remapDevice, type DeviceRegisterInput } from '../api/devices'
+import { listDevices, registerDevice, relocateDevice, remapDevice, type DeviceRegisterInput } from '../api/devices'
 import type { DeviceType } from '../types'
 
 const DEVICE_TYPE_LABEL: Record<DeviceType, string> = {
@@ -31,6 +31,10 @@ export function DeviceListPage() {
   const [remapTargetId, setRemapTargetId] = useState<string | null>(null)
   const [remapUserId, setRemapUserId] = useState('')
   const [remapError, setRemapError] = useState<string | null>(null)
+  const [relocateTargetId, setRelocateTargetId] = useState<string | null>(null)
+  const [relocateLat, setRelocateLat] = useState('')
+  const [relocateLng, setRelocateLng] = useState('')
+  const [relocateError, setRelocateError] = useState<string | null>(null)
 
   const devicesQuery = useQuery({
     queryKey: ['devices', keyword, deviceType],
@@ -62,6 +66,19 @@ export function DeviceListPage() {
     onError: (err) => setRemapError(err instanceof ApiError ? err.message : '매핑 변경에 실패했습니다.'),
   })
 
+  // CCTV·드론은 등록 시 입력한 좌표를 이후에도 고쳐 넣을 방법이 없었다 — relocateDevice API는
+  // 있었지만 어떤 화면에도 연결돼 있지 않았던 결함(전체 화면 점검 결과)의 재발 방지 지점.
+  const relocateMutation = useMutation({
+    mutationFn: ({ deviceId, latitude, longitude }: { deviceId: string; latitude: number; longitude: number }) =>
+      relocateDevice(deviceId, latitude, longitude),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['devices'] })
+      setRelocateTargetId(null)
+      setRelocateError(null)
+    },
+    onError: (err) => setRelocateError(err instanceof ApiError ? err.message : '위치 수정에 실패했습니다.'),
+  })
+
   const isPersonal = PERSONAL_TYPES.includes(form.deviceType)
   const isFixed = FIXED_LOCATION_TYPES.includes(form.deviceType)
 
@@ -75,6 +92,12 @@ export function DeviceListPage() {
     e.preventDefault()
     if (!remapUserId) return
     remapMutation.mutate({ deviceId, userId: remapUserId })
+  }
+
+  function handleRelocateSubmit(e: FormEvent, deviceId: string) {
+    e.preventDefault()
+    if (!relocateLat || !relocateLng) return
+    relocateMutation.mutate({ deviceId, latitude: Number(relocateLat), longitude: Number(relocateLng) })
   }
 
   return (
@@ -223,6 +246,7 @@ export function DeviceListPage() {
                   <th>연결방식</th>
                   <th>매핑대원</th>
                   <th>소속팀</th>
+                  <th>위치</th>
                   <th>상태</th>
                   <th>배터리</th>
                   <th>관리</th>
@@ -236,6 +260,11 @@ export function DeviceListPage() {
                     <td>{device.connectionType ?? '—'}</td>
                     <td>{device.mappedUserName ?? (PERSONAL_TYPES.includes(device.deviceType) ? '— (미매핑)' : '— (자산)')}</td>
                     <td>{device.mappedUserTeam ?? '—'}</td>
+                    <td>
+                      {device.latitude != null && device.longitude != null
+                        ? `${device.latitude.toFixed(4)}, ${device.longitude.toFixed(4)}`
+                        : '—'}
+                    </td>
                     <td style={{ color: device.status === 'NORMAL' ? undefined : 'var(--color-alert)' }}>
                       {device.status === 'NORMAL' ? '정상' : device.status === 'WARNING' ? '저전압' : '연결끊김'}
                     </td>
@@ -277,12 +306,56 @@ export function DeviceListPage() {
                             매핑 변경
                           </button>
                         ))}
+                      {FIXED_LOCATION_TYPES.includes(device.deviceType) &&
+                        (relocateTargetId === device.deviceId ? (
+                          <form style={{ display: 'flex', gap: 4 }} onSubmit={(e) => handleRelocateSubmit(e, device.deviceId)}>
+                            <input
+                              className="wf-field"
+                              style={{ padding: '4px 6px', fontSize: 11, width: 80 }}
+                              type="number"
+                              step="any"
+                              placeholder="위도"
+                              value={relocateLat}
+                              onChange={(e) => setRelocateLat(e.target.value)}
+                              autoFocus
+                              required
+                            />
+                            <input
+                              className="wf-field"
+                              style={{ padding: '4px 6px', fontSize: 11, width: 80 }}
+                              type="number"
+                              step="any"
+                              placeholder="경도"
+                              value={relocateLng}
+                              onChange={(e) => setRelocateLng(e.target.value)}
+                              required
+                            />
+                            <button type="submit" className="wf-btn primary small" disabled={relocateMutation.isPending}>
+                              확인
+                            </button>
+                            <button type="button" className="wf-btn small" onClick={() => setRelocateTargetId(null)}>
+                              취소
+                            </button>
+                          </form>
+                        ) : (
+                          <button
+                            type="button"
+                            className="wf-btn small"
+                            onClick={() => {
+                              setRelocateTargetId(device.deviceId)
+                              setRelocateLat(device.latitude != null ? String(device.latitude) : '')
+                              setRelocateLng(device.longitude != null ? String(device.longitude) : '')
+                            }}
+                          >
+                            위치 수정
+                          </button>
+                        ))}
                     </td>
                   </tr>
                 ))}
                 {devicesQuery.data.content.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: 'center' }}>
+                    <td colSpan={9} style={{ textAlign: 'center' }}>
                       검색 결과가 없습니다.
                     </td>
                   </tr>
@@ -291,6 +364,7 @@ export function DeviceListPage() {
             </table>
           )}
           {remapError && <Banner kind="error" message={remapError} />}
+          {relocateError && <Banner kind="error" message={relocateError} />}
         </div>
       </div>
     </AdminLayout>

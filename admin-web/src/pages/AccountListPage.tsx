@@ -1,8 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AdminLayout } from '../components/AdminLayout'
-import { listAccounts } from '../api/accounts'
+import { Banner } from '../components/Banner'
+import { ApiError } from '../api/client'
+import { deactivateAccount, listAccounts, reissuePassword } from '../api/accounts'
 import type { Role } from '../types'
 
 const ROLE_LABEL: Record<Role, string> = { ADMIN: '관리자', COMMANDER: '지휘관', RESPONDER: '대원' }
@@ -11,12 +13,38 @@ const ROLE_LABEL: Record<Role, string> = { ADMIN: '관리자', COMMANDER: '지�
 // QA 재검증 대상: 검색·필터가 실제 API 쿼리 파라미터로 나가는지가 핵심이므로, keyword/role을
 // 그대로 useQuery의 queryKey에 넣어 값이 바뀔 때마다 반드시 새 요청이 나가도록 한다.
 export function AccountListPage() {
+  const queryClient = useQueryClient()
   const [keyword, setKeyword] = useState('')
   const [role, setRole] = useState('ALL')
+  const [deactivateTargetId, setDeactivateTargetId] = useState<string | null>(null)
+  const [reissuedPassword, setReissuedPassword] = useState<{ name: string; password: string } | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const query = useQuery({
     queryKey: ['accounts', keyword, role],
     queryFn: () => listAccounts({ keyword, role, page: 0, size: 50 }),
+  })
+
+  const reissueMutation = useMutation({
+    mutationFn: (userId: string) => reissuePassword(userId),
+    onSuccess: (result) => {
+      setActionError(null)
+      setReissuedPassword({ name: result.account.name, password: result.issuedTemporaryPassword })
+    },
+    onError: (err) => setActionError(err instanceof ApiError ? err.message : '비밀번호 재발급에 실패했습니다.'),
+  })
+
+  const deactivateMutation = useMutation({
+    mutationFn: (userId: string) => deactivateAccount(userId),
+    onSuccess: () => {
+      setActionError(null)
+      setDeactivateTargetId(null)
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+    },
+    onError: (err) => {
+      setActionError(err instanceof ApiError ? err.message : '비활성화에 실패했습니다.')
+      setDeactivateTargetId(null)
+    },
   })
 
   return (
@@ -55,6 +83,14 @@ export function AccountListPage() {
             </div>
           </div>
 
+          {reissuedPassword && (
+            <div className="wf-box" style={{ marginBottom: 12, borderColor: 'var(--color-success)' }}>
+              <span className="label">{reissuedPassword.name}의 임시 비밀번호 재발급 (최초 1회만 표시)</span>
+              <strong style={{ fontFamily: 'var(--font-mono)', fontSize: 16 }}>{reissuedPassword.password}</strong>
+            </div>
+          )}
+          {actionError && <Banner kind="error" message={actionError} />}
+
           {query.isLoading && <div className="spinner-text">불러오는 중…</div>}
           {query.isError && <div className="banner error">계정 목록을 불러오지 못했습니다.</div>}
 
@@ -84,10 +120,41 @@ export function AccountListPage() {
                         {account.status === 'ACTIVE' ? '활성' : '비활성'}
                       </span>
                     </td>
-                    <td>
+                    <td style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       <Link to={`/accounts/${account.userId}/edit`} className="wf-btn small">
                         수정
                       </Link>
+                      {account.status === 'ACTIVE' && (
+                        <>
+                          <button
+                            type="button"
+                            className="wf-btn small"
+                            disabled={reissueMutation.isPending}
+                            onClick={() => reissueMutation.mutate(account.userId)}
+                          >
+                            비밀번호 재발급
+                          </button>
+                          {deactivateTargetId === account.userId ? (
+                            <>
+                              <button
+                                type="button"
+                                className="wf-btn primary small"
+                                disabled={deactivateMutation.isPending}
+                                onClick={() => deactivateMutation.mutate(account.userId)}
+                              >
+                                {deactivateMutation.isPending ? '처리 중…' : '비활성화 확인'}
+                              </button>
+                              <button type="button" className="wf-btn small" onClick={() => setDeactivateTargetId(null)}>
+                                취소
+                              </button>
+                            </>
+                          ) : (
+                            <button type="button" className="wf-btn small" onClick={() => setDeactivateTargetId(account.userId)}>
+                              비활성화
+                            </button>
+                          )}
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))}
