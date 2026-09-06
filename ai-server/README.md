@@ -81,6 +81,14 @@ curl -X POST localhost:8001/api/v1/sop-match \
   -d '{"reportId":"...","reportContent":"화재 인지 후 무전 보고..."}'
 ```
 
+## 보안 점검(Phase 10)에서 발견한 미해결 의존성 취약점
+
+`pip-audit -r requirements.lock.txt`가 `starlette`(fastapi 0.115.6이 고정하는 버전),
+`langgraph`/`langchain-core`/`langchain-anthropic`에서 다수의 CVE를 보고한다. 전부 0.x→1.x
+급의 메이저 버전 업그레이드로만 고쳐지고, LLM 파이프라인(사전분석·SOP대조) 전체를 다시
+검증해야 할 만큼 API 변경 위험이 커서 이번 점검에서는 강행하지 않았다 — 별도 마이그레이션
+작업으로 다뤄야 한다. `python-multipart`(0.0.20→0.0.22)만 하위호환 패치라 바로 올렸다.
+
 ## 알려진 함정 (backend 쪽에서 이미 고쳐둔 것)
 
 Java `RestClient`가 기본 `java.net.http.HttpClient`로 이 서버를 호출하면 HTTP/2 업그레이드 헤더

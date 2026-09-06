@@ -63,6 +63,10 @@ ai-server가 콜백하는 `/incidents/dispatch/cctv-detections`·`/incidents/dro
 `INTERNAL_SERVICE_TOKEN`) 공유 토큰으로 검증한다 — ai-server의 `FAIND_BACKEND_SERVICE_TOKEN`과 같은 값을
 넣어야 하며, 둘 다 비워두면(로컬 데모 기본값) 검증을 생략한다.
 
+보안 점검(Phase 10)에서 `POST /api/v1/auth/login`에 시도 횟수 제한이 전혀 없어 사번을 고정한 채
+비밀번호를 무한히 대입할 수 있는 것을 발견해 고쳤다 — Redis에 사번당 실패 횟수를 세어 15분 내
+5회 실패하면 비밀번호가 맞아도 429를 반환한다(`AuthService.login`). 성공하면 카운터를 지운다.
+
 ## notification-server 로컬 실행
 
 ```bash

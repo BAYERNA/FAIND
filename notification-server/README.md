@@ -62,3 +62,11 @@ npm run test
 `alerts.alert_type` ENUM(§3.7)에는 "사후보고서 작성 알림"에 대응하는 값이 없다 — 그래서
 `report-draft-created`는 DB에 쓰지 않고 WebSocket 푸시만 한다. 나중에 이 알림도 이력으로 남겨야
 한다면 DB설계서에 `alert_type`을 추가하는 마이그레이션이 backend 쪽에 먼저 필요하다.
+
+## 보안 점검(Phase 10)에서 발견한 미해결 의존성 취약점
+
+`npm audit`이 26건(모더레이트 15 · 하이 7)을 보고한다 — 대부분 `@nestjs/core`/`@nestjs/platform-express`
+런타임 체인(주입 취약점, body-parser/multer DoS)과 `@nestjs/cli` 빌드 도구 체인(webpack/glob/tmp)이
+NestJS 10 → 11(메이저) 업그레이드로만 고쳐지는 것들이다. 이번 점검에서는 `npm audit fix`(비파괴적)로
+고쳐지는 것만 반영했고, 나머지는 프레임워크 메이저 버전을 통째로 올려야 해 회귀 위험이 커서
+자동으로 강행하지 않았다 — 별도 마이그레이션 작업으로 다뤄야 한다.
