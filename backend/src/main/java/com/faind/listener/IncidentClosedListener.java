@@ -1,6 +1,7 @@
 package com.faind.listener;
 
 import com.faind.domain.incident.event.IncidentClosedEvent;
+import com.faind.domain.incident.service.DroneDispatchService;
 import com.faind.domain.report.service.ReportService;
 import com.faind.integration.notification.NotificationPort;
 import java.util.List;
@@ -20,14 +21,22 @@ public class IncidentClosedListener {
 
   private final ReportService reportService;
   private final NotificationPort notificationPort;
+  private final DroneDispatchService droneDispatchService;
 
-  public IncidentClosedListener(ReportService reportService, NotificationPort notificationPort) {
+  public IncidentClosedListener(
+      ReportService reportService, NotificationPort notificationPort, DroneDispatchService droneDispatchService) {
     this.reportService = reportService;
     this.notificationPort = notificationPort;
+    this.droneDispatchService = droneDispatchService;
   }
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void onIncidentClosed(IncidentClosedEvent event) {
+    try {
+      droneDispatchService.releaseDronesForIncident(event.incidentId());
+    } catch (Exception e) {
+      log.error("FR-25 드론 배차 해제 실패 — 드론이 DISPATCHED 상태로 남아있을 수 있습니다 (incidentId={})", event.incidentId(), e);
+    }
     if (event.assignedResponderIds().isEmpty()) {
       log.info("배정된 대원이 없어 사후보고서 초안을 생성하지 않습니다 (incidentId={})", event.incidentId());
       return;

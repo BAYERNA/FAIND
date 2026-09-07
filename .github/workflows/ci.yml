@@ -50,6 +50,14 @@ jobs:
       # tests/test_yolo_service.py는 실제 YOLO 가중치 없이도 도는 순수 계산 테스트라
       # 모델 파일을 내려받거나 GPU를 준비할 필요가 없다.
       - run: pytest tests/ -v
+      # ai-server/README.md에 이미 문서화된 기존 취약점(starlette/langgraph 등, 메이저 업그레이드
+      # 필요)을 막지는 않는다 — pip-audit은 npm처럼 심각도 임계값 옵션이 없어서 완전히 차단하면
+      # 매번 실패한다. 대신 매 커밋마다 결과를 로그로 남겨 새로 추가되는 취약점을 눈에 띄게 한다.
+      - name: 의존성 취약점 점검 (정보성 — 결과가 있어도 빌드를 막지 않음)
+        continue-on-error: true
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.lock.txt
 
   notification-server:
     name: notification-server (NestJS)
@@ -67,6 +75,10 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run test
+      # notification-server/README.md에 이미 문서화된 기존 취약점(NestJS 10→11 메이저 업그레이드
+      # 필요)은 대부분 moderate/high라 critical 임계값에서는 안 걸린다 — 새로 critical급이
+      # 추가되는 경우만 빌드를 막는다.
+      - run: npm audit --audit-level=critical
 
   admin-web:
     name: admin-web (React/TS)
@@ -88,6 +100,7 @@ jobs:
       - run: npx tsc -b
       - run: npx oxlint
       - run: npm run test
+      - run: npm audit --audit-level=critical
 
   commander-tablet:
     name: commander-tablet (React/TS)
@@ -106,6 +119,7 @@ jobs:
       - run: npx tsc -b
       - run: npx oxlint
       - run: npm run test
+      - run: npm audit --audit-level=critical
 
   responder-app:
     name: responder-app (React/TS)
@@ -124,6 +138,7 @@ jobs:
       - run: npx tsc -b
       - run: npx oxlint
       - run: npm run test
+      - run: npm audit --audit-level=critical
 
   e2e:
     name: E2E (Playwright)
@@ -235,3 +250,45 @@ jobs:
             commander-tablet/playwright-report
             responder-app/playwright-report
           retention-days: 7
+
+  docker-smoke-test:
+    name: Docker Compose 스모크 테스트
+    runs-on: ubuntu-latest
+    # 위의 e2e job은 backend/notification-server를 raw 프로세스로, 3개 프론트엔드는 vite dev
+    # server로 띄워서 검증한다 — docker-compose.yml/각 앱의 Dockerfile·nginx.conf는 그 어떤 job도
+    # 실제로 빌드·기동해본 적이 없다. 그래서 nginx 오리진(8081~8083)에서 로그인이 CORS 403으로
+    # 막히던 실제 버그(docker-compose.yml의 backend CORS_ALLOWED_ORIGINS 설정 누락)를 이 워크플로우가
+    # 못 잡고 라이브 테스트에서야 발견됐었다 — 이 job은 그 경로(Docker 빌드 + nginx 프록시 + CORS)를
+    # 실제로 재현해서 검증한다.
+    steps:
+      - uses: actions/checkout@v4
+      - name: 전체 스택 빌드·기동
+        run: docker compose up -d --build
+      - name: backend 헬스체크 대기
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8080/actuator/health && exit 0
+            sleep 3
+          done
+          echo "backend가 기동하지 못했다"; docker compose logs backend; exit 1
+      # scripts/seed-e2e-accounts.sql은 e2e job의 global-setup.ts가 쓰는 것과 동일한 파일이다.
+      - name: E2E 계정 시드
+        run: docker compose exec -T postgres psql -U faind -d faind < scripts/seed-e2e-accounts.sql
+      - name: 각 프론트엔드 nginx 오리진 경유 로그인 스모크 테스트 (CORS/프록시 설정 검증)
+        run: |
+          declare -A PORTS=( [admin-web]=8081 [commander-tablet]=8082 [responder-app]=8083 )
+          for name in "${!PORTS[@]}"; do
+            port=${PORTS[$name]}
+            code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "http://localhost:$port/api/v1/auth/login" \
+              -H "Content-Type: application/json" -H "Origin: http://localhost:$port" \
+              -d '{"badgeNumber":"E2E-ADMIN","password":"Test1234!"}')
+            echo "$name (:$port) 로그인 → HTTP $code"
+            if [ "$code" != "200" ]; then
+              echo "실패 — nginx 프록시/CORS 설정을 확인하라"
+              docker compose logs backend "$name"
+              exit 1
+            fi
+          done
+      - name: 정리
+        if: always()
+        run: docker compose down -v

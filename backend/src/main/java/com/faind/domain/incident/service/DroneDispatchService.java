@@ -63,6 +63,12 @@ public class DroneDispatchService {
     }
 
     NearestDroneResponse drone = nearestDrone.get();
+    if (!deviceService.claimDroneForDispatch(drone.droneId())) {
+      // 후보를 고른 뒤 선점하는 사이 다른 출동이 같은 드론을 먼저 가져간 경우(동시 배차 경합) —
+      // 이번 배정은 건너뛴다. 드물게라도 실제로 겪을 수 있는 경합이라 조용히 무시하지 않고 로그를 남긴다.
+      log.info("드론이 동시 배차 경합으로 이미 선점되어 자동배정을 건너뜁니다 (incidentId={}, droneId={})", incidentId, drone.droneId());
+      return Optional.empty();
+    }
     DroneDispatch dispatch = new DroneDispatch(incidentId, drone.droneId());
     droneDispatchRepository.save(dispatch);
 
@@ -84,6 +90,19 @@ public class DroneDispatchService {
     dispatch.markOnSite(videoRef);
     aiJudgmentLogRepository.save(
         new AiJudgmentLog("DRONE_RECON", dispatch.getIncidentId(), null, dispatch.getDroneId(), confidenceScore, summary));
+  }
+
+  // FR-25: 출동이 종료(IncidentClosedListener, AFTER_COMMIT)되면 그 출동에 배정됐던 드론들을 전부
+  // 배차 가능 상태로 되돌린다 — 이걸 안 하면 그 드론이 영원히 DISPATCHED로 남아 이후 어떤 출동에도
+  // 다시 자동배정될 수 없다. REQUIRES_NEW: autoDispatch()와 같은 이유(IncidentService.
+  // savePreAnalysisResult 주석 참조) — AFTER_COMMIT 콜백에서 기본 REQUIRED로 걸면 이미 끝나가는
+  // 트랜잭션에 합류만 하고 실제 커밋이 조용히 유실된다.
+  @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+  public void releaseDronesForIncident(UUID incidentId) {
+    List<DroneDispatch> dispatches = droneDispatchRepository.findByIncidentIdOrderByDispatchedAtDesc(incidentId);
+    for (DroneDispatch dispatch : dispatches) {
+      deviceService.releaseDrone(dispatch.getDroneId());
+    }
   }
 
   // FR-27: ADM-009 골든타임 단축효과 — "드론 활용 시 현장 최초 도착" 평균값의 소스.

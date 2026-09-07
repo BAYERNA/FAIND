@@ -24,6 +24,14 @@ const DEVICE_TYPE_LABEL: Record<DeviceType, string> = {
 }
 const PERSONAL_TYPES: DeviceType[] = ['BODYCAM', 'SMARTPHONE', 'DIGITAL_MASK', 'SENSOR']
 const FIXED_LOCATION_TYPES: DeviceType[] = ['CCTV', 'DRONE']
+// DISPATCHED는 드론 전용(FR-25 자동배차 중) — WARNING/DISCONNECTED와 달리 이상 상태가 아니므로
+// 경고색 대신 중립색으로 구분한다.
+const DEVICE_STATUS_LABEL: Record<string, string> = {
+  NORMAL: '정상',
+  WARNING: '저전압',
+  DISCONNECTED: '연결끊김',
+  DISPATCHED: '배차중',
+}
 
 const EMPTY_FORM: DeviceRegisterInput = { deviceType: 'BODYCAM', serialNo: '', connectionType: 'BLE' }
 
@@ -310,8 +318,15 @@ export function DeviceListPage() {
                     <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {FIXED_LOCATION_TYPES.includes(device.deviceType) ? (device.streamUrl ?? '— (미등록)') : '—'}
                     </td>
-                    <td style={{ color: device.status === 'NORMAL' ? undefined : 'var(--color-alert)' }}>
-                      {device.status === 'NORMAL' ? '정상' : device.status === 'WARNING' ? '저전압' : '연결끊김'}
+                    <td
+                      style={{
+                        color:
+                          device.status === 'WARNING' || device.status === 'DISCONNECTED'
+                            ? 'var(--color-alert)'
+                            : undefined,
+                      }}
+                    >
+                      {DEVICE_STATUS_LABEL[device.status] ?? device.status}
                     </td>
                     <td>{device.batteryLevel != null ? `${device.batteryLevel}%` : '-'}</td>
                     <td>

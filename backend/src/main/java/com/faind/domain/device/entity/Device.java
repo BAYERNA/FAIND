@@ -47,7 +47,7 @@ public class Device {
   private String streamUrl;
 
   @Column(nullable = false, length = 15)
-  private String status = "NORMAL"; // NORMAL / WARNING / DISCONNECTED
+  private String status = "NORMAL"; // NORMAL / WARNING / DISCONNECTED / DISPATCHED(드론 전용, FR-25 배차중)
 
   @Column(name = "battery_level")
   private Integer batteryLevel;
