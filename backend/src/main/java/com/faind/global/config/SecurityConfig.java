@@ -1,0 +1,69 @@
+package com.faind.global.config;
+
+import com.faind.global.security.InternalServiceAuthFilter;
+import com.faind.global.security.JwtAuthFilter;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+public class SecurityConfig {
+
+  private static final String[] PUBLIC_ENDPOINTS = {
+    "/api/v1/auth/login",
+    "/actuator/health",
+    "/swagger-ui/**",
+    "/v3/api-docs/**"
+  };
+
+  // ai-server 콜백 전용 — 로그인 사용자 JWT 대신 InternalServiceAuthFilter가 별도 토큰으로 검증한다.
+  private static final String[] INTERNAL_SERVICE_ENDPOINTS = {
+    "/api/v1/incidents/dispatch/cctv-detections",
+    "/api/v1/incidents/drone-dispatches/*/recon-result"
+  };
+
+  private final JwtAuthFilter jwtAuthFilter;
+  private final InternalServiceAuthFilter internalServiceAuthFilter;
+
+  public SecurityConfig(JwtAuthFilter jwtAuthFilter, InternalServiceAuthFilter internalServiceAuthFilter) {
+    this.jwtAuthFilter = jwtAuthFilter;
+    this.internalServiceAuthFilter = internalServiceAuthFilter;
+  }
+
+  @Bean
+  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    http.csrf(AbstractHttpConfigurer::disable)
+        .cors(Customizer.withDefaults())
+        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .authorizeHttpRequests(
+            auth -> auth.requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                .requestMatchers(INTERNAL_SERVICE_ENDPOINTS).permitAll()
+                .anyRequest().authenticated())
+        .addFilterBefore(internalServiceAuthFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+    return http.build();
+  }
+
+  @Bean
+  public PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder();
+  }
+
+  @Bean
+  public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+    return config.getAuthenticationManager();
+  }
+}

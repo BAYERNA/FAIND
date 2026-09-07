@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+models/*.pt
+!models/.gitkeep
+# fire_yolov8.pt: Nocluee100/Fire-and-Smoke-Detection-yolov8-v1 (MIT) 가중치.
+# 출처·라이선스는 models/NOTICE.md 참조. 다른 .pt는 계속 커밋 대상에서 제외한다.
+!models/fire_yolov8.pt
+.pytest_cache/

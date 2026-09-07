@@ -1,0 +1,96 @@
+spring:
+  application:
+    name: faind-backend
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/faind}
+    username: ${DB_USERNAME:faind}
+    password: ${DB_PASSWORD:faind}
+    hikari:
+      maximum-pool-size: 10
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+faind:
+  jwt:
+    secret: ${JWT_SECRET:faind-local-development-secret-key-change-in-production-0123456789}
+    expiration-minutes: 480
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:3000}
+  security:
+    # ai-server → backend 콜백(FR-24 cctv-detections, FR-26 recon-result) 전용 공유 토큰.
+    # ai-server의 FAIND_BACKEND_SERVICE_TOKEN과 동일한 값을 넣어야 한다. 비워두면(로컬 데모 기본값)
+    # InternalServiceAuthFilter가 검증을 생략한다 — notification-server의 INTERNAL_WEBHOOK_TOKEN과 동일한 관용.
+    internal-service-token: ${INTERNAL_SERVICE_TOKEN:}
+  routing:
+    ground-vehicle-avg-speed-kmh: 40
+    drone-avg-speed-kmh: 70
+    # FR-20: 후발대(소방차) 출발지. DB설계서에 소방서·차량 위치 테이블이 없어(드론처럼 device로
+    # 추적되지 않음), 실서비스 전환 전까지는 관할 소방서 고정 좌표로 근사한다.
+    fire-station-latitude: 37.5665
+    fire-station-longitude: 126.9780
+    fire-station-label: "OO소방서"
+  statistics:
+    # FR-27 "기존 평균 출동시간" 기준값(초). 실서비스 단계에서는 소방청 통계 API로 대체.
+    existing-average-dispatch-seconds: 492
+  integration:
+    ai-server:
+      base-url: ${AI_SERVER_BASE_URL:http://localhost:8001}
+    notification-server:
+      base-url: ${NOTIFICATION_SERVER_BASE_URL:http://localhost:3001}
+    public-data:
+      base-url: ${PUBLIC_DATA_BASE_URL:https://apis.data.go.kr}
+      service-key: ${PUBLIC_DATA_SERVICE_KEY:}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      aiServer:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+      notificationServer:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+
+logging:
+  level:
+    com.faind: INFO

@@ -1,0 +1,68 @@
+.tablet-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.tablet-topbar {
+  background: var(--color-panel);
+  border-bottom: 1.5px solid var(--color-line);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tablet-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.tablet-topbar .screen-id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-ink-soft);
+  letter-spacing: 0.04em;
+}
+
+.tablet-topbar h1 {
+  font-size: 18px;
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+
+.tablet-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ws-indicator {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.ws-indicator.connected {
+  color: var(--color-success);
+}
+
+.ws-indicator.disconnected {
+  color: var(--color-ink-soft);
+}
+
+.tablet-user {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tablet-canvas {
+  flex: 1;
+  padding: 24px;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+}
