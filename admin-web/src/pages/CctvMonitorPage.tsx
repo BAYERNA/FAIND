@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AdminLayout } from '../components/AdminLayout'
 import { Banner } from '../components/Banner'
-import { buildLiveStreamUrl, getCameras, getLiveDanger } from '../api/devices'
+import { buildLiveStreamDebugUrl, buildLiveStreamUrl, getCameras, getLiveDanger } from '../api/devices'
 import { registerManualDetection } from '../api/incidents'
 import { ApiError } from '../api/client'
 import type { CameraResponse, LiveDangerSnapshot } from '../types'
@@ -28,6 +28,9 @@ const DANGER_RANK: Record<string, number> = { CRITICAL: 3, DANGER: 2, WARNING: 1
 function CameraTile({ camera, danger, dangerError }: { camera: CameraResponse; danger?: LiveDangerSnapshot; dangerError: boolean }) {
   const [registeredIncidentId, setRegisteredIncidentId] = useState<string | null>(null)
   const [registerError, setRegisterError] = useState<string | null>(null)
+  // 디버그 전용 토글 — 기본은 꺼져 있어 운영 화면은 항상 박스 없는 순수 영상이다. 켰을 때만
+  // /mjpeg-debug로 바꿔 감지 박스를 확인한다(영상·판단 분리 원칙은 기본값에서 그대로 유지).
+  const [showDebugBoxes, setShowDebugBoxes] = useState(false)
 
   const registerMutation = useMutation({
     mutationFn: () =>
@@ -58,10 +61,16 @@ function CameraTile({ camera, danger, dangerError }: { camera: CameraResponse; d
       </div>
       <div className="wf-body" style={{ padding: 0 }}>
         <img
-          alt={`${camera.serialNo} 실시간 영상`}
-          src={buildLiveStreamUrl(camera.streamUrl!)}
+          alt={`${camera.serialNo} 실시간 영상${showDebugBoxes ? ' (감지 박스 디버그 보기)' : ''}`}
+          src={showDebugBoxes ? buildLiveStreamDebugUrl(camera.streamUrl!) : buildLiveStreamUrl(camera.streamUrl!)}
           style={{ width: '100%', display: 'block' }}
         />
+      </div>
+      <div className="wf-body" style={{ paddingTop: 6, paddingBottom: 0 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--color-ink-soft)' }}>
+          <input type="checkbox" checked={showDebugBoxes} onChange={(e) => setShowDebugBoxes(e.target.checked)} />
+          감지 박스 보기 (디버그용 — 운영 판단은 위 배지를 기준으로 하세요)
+        </label>
       </div>
       {(dangerError || (danger && danger.isFlickerVerified === false)) && (
         <div className="wf-body" style={{ paddingTop: 6, fontSize: 12, color: 'var(--color-ink-soft)' }}>

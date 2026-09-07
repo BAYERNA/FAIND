@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { postAiRiskWarning } from '../api/alerts'
-import { buildLiveStreamUrl, getCameras, getLiveDanger } from '../api/devices'
+import { buildLiveStreamDebugUrl, buildLiveStreamUrl, getCameras, getLiveDanger } from '../api/devices'
 import { DANGER_CLASS, DANGER_LABEL, DANGER_POLL_INTERVAL_MS, SPREAD_LABEL } from '../dangerDisplay'
 import type { CameraResponse } from '../types'
 
@@ -29,6 +29,9 @@ function LiveCameraTile({
     retry: false,
   })
   const danger = dangerQuery.data
+  // 디버그 전용 토글 — 기본은 꺼져 있어 운영 화면은 항상 박스 없는 순수 영상이다. 켰을 때만
+  // /mjpeg-debug로 바꿔 감지 박스를 확인한다(영상·판단 분리 원칙은 기본값에서 그대로 유지).
+  const [showDebugBoxes, setShowDebugBoxes] = useState(false)
 
   const alertMutation = useMutation({ mutationFn: (message: string) => postAiRiskWarning(incidentId, message) })
   // 이전 폴링의 등급을 ref로 들고 있다가 "방금 CRITICAL로 새로 올라간 순간"만 걸러낸다 — 렌더링
@@ -55,11 +58,17 @@ function LiveCameraTile({
         </div>
       ) : (
         <img
-          alt={`${camera.serialNo} 실시간 영상`}
-          src={buildLiveStreamUrl(camera.streamUrl!)}
+          alt={`${camera.serialNo} 실시간 영상${showDebugBoxes ? ' (감지 박스 디버그 보기)' : ''}`}
+          src={showDebugBoxes ? buildLiveStreamDebugUrl(camera.streamUrl!) : buildLiveStreamUrl(camera.streamUrl!)}
           style={{ width: '100%', borderRadius: 6, border: '1px solid var(--color-border-soft)', display: 'block' }}
           onError={onError}
         />
+      )}
+      {!failed && (
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 11, color: 'var(--color-ink-soft)' }}>
+          <input type="checkbox" checked={showDebugBoxes} onChange={(e) => setShowDebugBoxes(e.target.checked)} />
+          감지 박스 보기 (디버그용 — 운영 판단은 아래 배지를 기준으로 하세요)
+        </label>
       )}
       {!failed && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 12, flexWrap: 'wrap' }}>

@@ -17,6 +17,13 @@ export function buildLiveStreamUrl(streamUrl: string): string {
   return `/ai-stream/mjpeg?stream_url=${encodeURIComponent(streamUrl)}`
 }
 
+// 디버그 전용 — 감지된 fire/smoke 박스를 프레임 위에 그려서 내보내는 별도 채널(ai-server
+// stream_router.py의 /mjpeg-debug). 기본 화면(buildLiveStreamUrl)은 계속 박스 없이 유지하고,
+// 이건 사용자가 명시적으로 "박스 보기"를 켰을 때만 쓴다.
+export function buildLiveStreamDebugUrl(streamUrl: string): string {
+  return `/ai-stream/mjpeg-debug?stream_url=${encodeURIComponent(streamUrl)}`
+}
+
 // FR-24/26 Phase 3: 지휘관이 보고 있는 카메라의 현재 위험도 스냅샷. deviceId는 카메라별
 // 깜빡임·확산 이력을 이어가기 위한 키로만 쓰이고, incident 생성·확정과는 무관하다(읽기 전용).
 export function getLiveDanger(streamUrl: string, deviceId: string): Promise<LiveDangerSnapshot> {
