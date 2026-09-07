@@ -12,7 +12,7 @@
 import asyncio
 import logging
 import os
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 import cv2
 from fastapi import APIRouter, Depends, Query
@@ -21,6 +21,7 @@ from fastapi.responses import StreamingResponse
 from app.agents.fire_detection_agent import FireDetectionAgent
 from app.api.v1.fire_detection_router import _result_kwargs, get_fire_detection_agent
 from app.schemas.fire_detection_schema import FireDetectionResult
+from app.services.yolo_service import YoloService
 
 logger = logging.getLogger(__name__)
 
@@ -33,16 +34,19 @@ FRAME_INTERVAL_SECONDS = 0.01  # 뷰어 화면 갱신 속도 상한(~100fps) 겸
 STATIC_IMAGE_REPEAT_INTERVAL_SECONDS = 1.0  # 로컬 이미지 파일(테스트용)은 매초 그대로 재전송
 
 
-async def _mjpeg_frames(stream_url: str) -> AsyncGenerator[bytes, None]:
+async def _mjpeg_frames(stream_url: str, yolo_service: Optional[YoloService] = None) -> AsyncGenerator[bytes, None]:
     # cv2 호출은 전부 블로킹이라, 이벤트 루프를 막지 않도록 asyncio.to_thread로 스레드에 위임한다
     # (같은 워커가 다른 요청 - 예: /fire-detection/analyze - 도 동시에 처리해야 하므로).
+    # yolo_service가 주어지면(디버그 엔드포인트 전용) 프레임마다 감지 박스를 그려서 내보낸다 —
+    # 운영 경로(/mjpeg)는 항상 yolo_service=None으로 호출해 박스 없는 순수 영상을 유지한다.
     if os.path.exists(stream_url):
         frame = await asyncio.to_thread(cv2.imread, stream_url)
         if frame is None:
             logger.warning("정지 이미지를 읽을 수 없습니다: %s", stream_url)
             return
         while True:
-            ok, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
+            out = frame if yolo_service is None else await asyncio.to_thread(yolo_service.detect_and_annotate, frame)
+            ok, buffer = cv2.imencode(".jpg", out, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
             if ok:
                 yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n"
             await asyncio.sleep(STATIC_IMAGE_REPEAT_INTERVAL_SECONDS)
@@ -64,7 +68,8 @@ async def _mjpeg_frames(stream_url: str) -> AsyncGenerator[bytes, None]:
             if not ok:
                 logger.warning("스트림에서 프레임을 읽지 못했습니다(연결 종료로 판단): %s", stream_url)
                 break
-            ok2, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
+            out = frame if yolo_service is None else await asyncio.to_thread(yolo_service.detect_and_annotate, frame)
+            ok2, buffer = cv2.imencode(".jpg", out, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY])
             if not ok2:
                 continue
             yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n"
@@ -79,6 +84,20 @@ async def mjpeg_stream(
 ):
     return StreamingResponse(
         _mjpeg_frames(stream_url),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
+@router.get("/mjpeg-debug")
+async def mjpeg_debug_stream(
+    stream_url: str = Query(..., description="CCTV/드론 스트림 주소 또는 로컬 이미지 경로(테스트용)"),
+    agent: FireDetectionAgent = Depends(get_fire_detection_agent),
+):
+    """디버그 전용: /mjpeg와 동일하지만 감지된 fire/smoke 박스를 프레임 위에 그려서 내보낸다.
+    CMD-002/ADM-010 운영 화면은 여전히 /mjpeg(박스 없음)를 쓴다 — 이 경로는 개발자가 실제
+    감지 위치가 맞는지 직접 확인할 때만 쓰는 용도다(모듈 docstring 참조)."""
+    return StreamingResponse(
+        _mjpeg_frames(stream_url, agent.yolo_service),
         media_type="multipart/x-mixed-replace; boundary=frame",
     )
 

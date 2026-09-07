@@ -210,6 +210,35 @@ class YoloService:
             spread_speed_px_per_sec=spread_speed,
         )
 
+    def detect_and_annotate(self, frame: np.ndarray) -> np.ndarray:
+        """디버그 전용: 원본 프레임 위에 감지된 fire/smoke 박스를 그려서 돌려준다.
+        운영 화면(/streams/mjpeg)에는 쓰지 않는다 — "박스가 없으면 안전하다"는 잘못된 신호를
+        줄 수 있어 영상과 판단을 분리해뒀다(모듈 docstring 참조). 이건 개발자가 실제 감지
+        위치가 맞는지 직접 눈으로 확인할 때만 쓰는 별도 경로다."""
+        if not self.is_available:
+            return frame
+
+        results = self._model.predict(frame, device=self._device, verbose=False)
+        annotated = frame.copy()
+        for result in results:
+            boxes = getattr(result, "boxes", None)
+            if boxes is None:
+                continue
+            for box in boxes:
+                class_id = int(box.cls[0])
+                if class_id not in self._fire_class_ids:
+                    continue
+                confidence = float(box.conf[0])
+                if confidence < self._confidence_threshold:
+                    continue
+                x1, y1, x2, y2 = [int(v) for v in box.xyxy[0].tolist()]
+                class_name = str(self._model.names.get(class_id, class_id))
+                color = (0, 0, 255) if class_name == "fire" else (0, 165, 255)  # BGR: fire=빨강, 그 외(smoke 등)=주황
+                cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+                label = f"{class_name} {confidence:.2f}"
+                cv2.putText(annotated, label, (x1, max(0, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+        return annotated
+
     def _verify_flicker(
         self,
         frames: list[np.ndarray],
