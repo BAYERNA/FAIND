@@ -138,6 +138,20 @@ public class DeviceService {
         .map(d -> new NearestDroneResponse(d.getDeviceId(), d.getLatitude(), d.getLongitude(), d.getSerialNo()));
   }
 
+  // FR-25: findNearestAvailableDrone()으로 후보를 고른 뒤 이걸로 선점을 확정한다. DB의 원자적
+  // UPDATE...WHERE로 처리해서, 두 출동이 동시에 같은 드론을 고르는 경합을 막는다 — 실패(false)면
+  // 그사이 다른 출동이 먼저 선점한 것이므로 호출부가 이번 배정을 건너뛴다.
+  @Transactional
+  public boolean claimDroneForDispatch(UUID droneId) {
+    return deviceRepository.claimForDispatch(droneId) > 0;
+  }
+
+  // FR-25: 출동이 종료되면 그 출동에 배정됐던 드론들을 다시 배차 가능(NORMAL) 상태로 되돌린다.
+  @Transactional
+  public void releaseDrone(UUID droneId) {
+    deviceRepository.findById(droneId).ifPresent(d -> d.updateStatus("NORMAL", d.getBatteryLevel()));
+  }
+
   // ADM-001 관리자 홈(FR-09) "기기 이상" 카드.
   public long countAnomalies() {
     return deviceRepository.countByStatusIn(List.of("WARNING", "DISCONNECTED"));
