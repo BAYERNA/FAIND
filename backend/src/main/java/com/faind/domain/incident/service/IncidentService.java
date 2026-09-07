@@ -92,7 +92,7 @@ public class IncidentService {
   public IncidentResponse create(IncidentCreateRequest request) {
     Incident incident = Incident.manualReport(
         incidentNumberGenerator.next(),
-        IncidentType.valueOf(request.incidentType()),
+        parseIncidentType(request.incidentType()),
         request.address(),
         request.latitude(),
         request.longitude(),
@@ -102,6 +102,17 @@ public class IncidentService {
     // §0.3: source 무관하게 "실제 출동(DISPATCHED)이 확정된 순간"에만 발행 — 사람 신고는 접수 즉시가 그 순간이다.
     eventPublisher.publishEvent(new IncidentCreatedEvent(incident.getIncidentId(), true));
     return IncidentResponse.from(incident);
+  }
+
+  // DeviceService.parseType()과 같은 이유 — Enum.valueOf를 그대로 두면 잘못된 값(오타 등)이
+  // IllegalArgumentException으로 터져 500(서버 오류)이 되어버린다. 클라이언트 입력 문제이므로
+  // 400(INVALID_INPUT)으로 명확히 응답한다.
+  private IncidentType parseIncidentType(String incidentType) {
+    try {
+      return IncidentType.valueOf(incidentType);
+    } catch (IllegalArgumentException e) {
+      throw new BusinessException(ErrorCode.INVALID_INPUT, "알 수 없는 출동 유형입니다: " + incidentType);
+    }
   }
 
   public IncidentResponse getIncident(UUID incidentId) {

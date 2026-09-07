@@ -8,7 +8,7 @@ import json
 from functools import lru_cache
 from typing import Optional
 
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -54,14 +54,15 @@ class Settings(BaseSettings):
     cctv_poll_interval_seconds: int = 30
     cctv_cameras_raw: str = Field(default="[]", alias="FAIND_CCTV_CAMERAS")
 
-    cors_allowed_origins: list[str] = ["http://localhost:8080"]
+    # list[str]로 선언하면 pydantic-settings가 env/​.env 값을 field_validator에 넘기기 전에
+    # 먼저 JSON으로 파싱을 시도해서, ".env.example"에 적힌 것처럼 콤마로 구분한 일반 문자열을
+    # 넣으면 그 시점에 SettingsError로 앱이 아예 기동을 못 한다 — 실제로 겪은 문제다. 아래
+    # cctv_cameras_raw와 같은 패턴(문자열로 받아서 property에서 직접 분해)으로 우회한다.
+    cors_allowed_origins_raw: str = Field(default="http://localhost:8080", alias="FAIND_CORS_ALLOWED_ORIGINS")
 
-    @field_validator("cors_allowed_origins", mode="before")
-    @classmethod
-    def _split_origins(cls, value):
-        if isinstance(value, str):
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
-        return value
+    @property
+    def cors_allowed_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_allowed_origins_raw.split(",") if origin.strip()]
 
     @property
     def cctv_cameras(self) -> list[CameraConfig]:

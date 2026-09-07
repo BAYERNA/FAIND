@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -67,6 +68,14 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
     return ResponseEntity.status(ErrorCode.INVALID_INPUT.getStatus())
         .body(ErrorResponse.of(ErrorCode.INVALID_INPUT, "'" + e.getName() + "' 파라미터 형식이 올바르지 않습니다."));
+  }
+
+  // 존재하지 않는 경로(오타, 잘못된 API 버전 등) — Spring이 매핑된 컨트롤러를 못 찾으면
+  // 정적 리소스 핸들러로 넘어갔다가 이 예외를 던지는데, 여기서 안 잡으면 catch-all(500)로
+  // 떨어져 "찾을 수 없는 URL"이 "서버 오류"로 둔갑해버린다 — 전수 점검 중 실제로 겪은 문제다.
+  @ExceptionHandler(NoResourceFoundException.class)
+  public ResponseEntity<ErrorResponse> handleNoResourceFound(NoResourceFoundException e) {
+    return ResponseEntity.status(ErrorCode.NOT_FOUND.getStatus()).body(ErrorResponse.of(ErrorCode.NOT_FOUND));
   }
 
   @ExceptionHandler(Exception.class)
