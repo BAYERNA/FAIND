@@ -27,7 +27,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/streams", tags=["streams"])
 
 JPEG_QUALITY = 70
-FRAME_INTERVAL_SECONDS = 0.05  # 뷰어 화면 갱신 속도 상한(~20fps) 겸 서버 부하 조절
+FRAME_INTERVAL_SECONDS = 0.01  # 뷰어 화면 갱신 속도 상한(~100fps) 겸 서버 부하 조절 — 실제 상한은
+# 어차피 capture.read()의 네트워크·디코딩 시간이 결정하므로, 여기서는 그 시간에 더는 보태지 않는
+# 최소값만 준다.
 STATIC_IMAGE_REPEAT_INTERVAL_SECONDS = 1.0  # 로컬 이미지 파일(테스트용)은 매초 그대로 재전송
 
 
@@ -48,6 +50,11 @@ async def _mjpeg_frames(stream_url: str) -> AsyncGenerator[bytes, None]:
 
     capture = await asyncio.to_thread(cv2.VideoCapture, stream_url)
     try:
+        # 실시간 IP 카메라(휴대폰 등)는 read()가 네트워크·디코딩 지연 없이 딱 최신 프레임만
+        # 돌려주지 않고, 내부 버퍼에 여러 프레임을 쌓아뒀다가 순서대로 내보내는 경우가 있다 —
+        # 그러면 시간이 갈수록 화면이 실제보다 뒤처져 보인다("점점 느려짐"). 버퍼를 최소로 둬서
+        # 항상 최신에 가까운 프레임만 읽게 한다(백엔드가 이 옵션을 지원 안 하면 그냥 무시된다).
+        await asyncio.to_thread(capture.set, cv2.CAP_PROP_BUFFERSIZE, 1)
         opened = await asyncio.to_thread(capture.isOpened)
         if not opened:
             logger.warning("스트림을 열 수 없습니다: %s", stream_url)
