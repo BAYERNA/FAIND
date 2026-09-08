@@ -18,7 +18,7 @@ export function AdminLayout({ children, title, screenId }: { children: ReactNode
     <div className="admin-shell">
       <aside className="admin-sidebar">
         <div className="brand">
-          FAIND<span>.</span>
+          출동메이트<span>.</span>
         </div>
         <div className="subtitle">관리자 콘솔</div>
         <nav>

@@ -44,7 +44,7 @@ export function SetInitialPasswordPage() {
   return (
     <div className="login-screen">
       <div className="login-hero">
-        <div className="login-hero-brand">FAIND</div>
+        <div className="login-hero-brand">출동메이트</div>
         <div className="login-hero-title">최초 접속 확인</div>
         <div className="login-hero-footer">보안을 위해 최초 비밀번호를 변경해야 합니다</div>
       </div>
