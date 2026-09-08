@@ -1,4 +1,4 @@
-# FAIND AI Analysis Server
+# 출동메이트 AI Analysis Server
 
 Python 3.11 + FastAPI + LangGraph. FR-02(사전분석) · FR-08(SOP 대조) · FR-24/26(화재감지·드론정찰)
 3개 에이전트를 REST로 노출한다 (코드구조설계서 §3).

@@ -1,4 +1,4 @@
-# FAIND Notification Server
+# 출동메이트 Notification Server
 
 Node.js + NestJS. FR-06(위험정보 알림) · FR-18(선발대-후발대 인수인계) · FR-22(확인 흐름) ·
 FR-23(장비·인력 지원요청) 담당 (코드구조설계서 §4).

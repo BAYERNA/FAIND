@@ -39,7 +39,7 @@ export function LoginPage() {
   return (
     <div className="login-screen">
       <div className="login-hero">
-        <div className="login-hero-brand">FAIND</div>
+        <div className="login-hero-brand">출동메이트</div>
         <div>
           <div className="login-hero-title">
             현장의 판단을,
@@ -48,7 +48,7 @@ export function LoginPage() {
           </div>
           <div className="login-hero-sub">AI 화재감지·드론출동·현장판단 · 신고접수부터 복귀까지</div>
         </div>
-        <div className="login-hero-footer">FAIND — AI가 화재를 감지하고 골든타임을 사수합니다</div>
+        <div className="login-hero-footer">출동메이트 — AI가 화재를 감지하고 골든타임을 사수합니다</div>
       </div>
       <div className="login-form-panel">
         <form className="login-form" onSubmit={handleSubmit}>
